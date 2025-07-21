@@ -42,25 +42,20 @@ class Orchestrator:
             logger.error(f"Error in handle_text: {str(e)}")
             raise
     
-    async def handle_file_question(self, query: str, file_id: str) -> str:
+    async def handle_file_question(self, query: str, context: str, is_image: bool) -> str:
         """
         Handle queries specifically about a particular file
         """
         try:
             # Clean query
-            cleaned_query = await self._clean_query(query)
-            
-            # Get context only from the specific file
-            context = await self.rag_pipeline.retrieve_file_context(
-                query=cleaned_query,
-                file_id=file_id
-            )
-            
+            cleaned_query = await self._clean_query(query)  
+
             # Generate response
             response = await self.gemini_client.generate_response(
                 query=cleaned_query,
                 context=context,
-                file_context=True
+                file_context=True,
+                is_image=is_image
             )
             
             return response
