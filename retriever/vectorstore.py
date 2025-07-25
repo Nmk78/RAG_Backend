@@ -94,7 +94,8 @@ class VectorStore:
         """
         try:
             # Convert embeddings to numpy arrays
-            embeddings_np = [np.array(emb) for emb in embeddings]
+            # embeddings_np = [np.array(emb) for emb in embeddings]
+            embeddings_np = [np.array(emb).tolist() for emb in embeddings]
             
             # Add to collection
             self.collection.add(

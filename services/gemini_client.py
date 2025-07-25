@@ -14,14 +14,30 @@ class GeminiClient:
         self.embedding_model = Config.GEMINI_EMBEDDING_MODEL  # e.g. "gemini-embedding-001"
         self.chat_history = []
 
-    async def generate_response(self, query: str, context: str = "", file_context: bool = False) -> str:
+    async def generate_response(self, query: str, context: str = "", file_context: bool = False, is_image: bool = False) -> str:
         try:
-            if context:
+            if is_image:
+                response = await asyncio.to_thread(
+                    self.client.models.generate_content,
+                    model=self.chat_model,
+                    contents=query
+                )
+                response_text = getattr(response, "text", None) or "I couldn't generate a response."
+                self.chat_history.append({"role": "user", "Image content": query})
+                self.chat_history.append({"role": "assistant", "content": response_text})
+                if len(self.chat_history) > 20:
+                    self.chat_history = self.chat_history[-20:]
+                logger.info(f"Generated response for query: {query[:50]}...")
+                return response_text
+            elif context:
                 prompt = self._build_file_prompt(query, context) if file_context else self._build_rag_prompt(query, context)
+            elif not context and not is_image:
+                prompt = self._build_normal_prompt(query)
             else:
-                prompt = query
+                raise ValueError("Invalid context or image")
+            
             response = await asyncio.to_thread(
-                self.client.models.generate_content,
+                self.client.models.generate_content,    
                 model=self.chat_model,
                 contents=prompt
             )
@@ -59,11 +75,23 @@ class GeminiClient:
         """
         Build a RAG prompt with context
         """
-        prompt = f"""You are a helpful AI assistant. Use the following context to answer the user's question. 
+        prompt = f"""You are a helpful AI assistant. Use the following context to answer the user's question in Burmese. 
         If the context doesn't contain relevant information, you can use your general knowledge, but prioritize the provided context.
 
         Context:
         {context}
+
+        User Question: {query}
+
+        Please provide a clear, accurate, and helpful response based on the context provided."""
+        
+        return prompt
+    
+    def _build_normal_prompt(self, query: str) -> str:
+        """
+        Build a RAG prompt with context
+        """
+        prompt = f"""You are a helpful AI assistant answer the user's question in Burmese unless user ask for English or other language. 
 
         User Question: {query}
 

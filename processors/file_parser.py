@@ -12,7 +12,7 @@ class FileParser:
     """
     
     def __init__(self):
-        self.supported_extensions = {'.pdf', '.docx', '.txt'}
+        self.supported_extensions = {'.pdf', '.docx', '.txt', '.png', '.jpg', '.jpeg', '.webp'}
     
     async def extract_text(self, file_path: str) -> str:
         """
@@ -30,6 +30,8 @@ class FileParser:
                 return await self._extract_from_docx(file_path)
             elif file_extension == '.txt':
                 return await self._extract_from_txt(file_path)
+            elif file_extension in {'.png', '.jpg', '.jpeg', '.webp'}:
+                return await self._extract_from_image(file_path)
             else:
                 raise ValueError(f"Unsupported file type: {file_extension}")
                 
@@ -115,6 +117,14 @@ class FileParser:
                 raise
         except Exception as e:
             logger.error(f"Error extracting from TXT {file_path}: {str(e)}")
+            raise
+
+    async def _extract_from_image(self, file_path: str) -> str:
+        try:
+            with open(file_path, 'rb') as f:
+                return f.read()
+        except Exception as e:
+            logger.error(f"Error extracting from image {file_path}: {str(e)}")
             raise
     
     def get_supported_extensions(self) -> set:

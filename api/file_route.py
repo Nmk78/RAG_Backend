@@ -44,9 +44,9 @@ async def upload_file(file: UploadFile = File(...)):
         # Generate unique file ID
         file_id = str(uuid.uuid4())
         file_extension = get_file_extension(file.filename)
-        
+        file_id_no_ext = file_id + "_" + file.filename
         # Save file to upload directory
-        file_path = os.path.join(Config.UPLOAD_DIR, f"{file_id}{file_extension}")
+        file_path = os.path.join(Config.UPLOAD_DIR, f"{file_id}_{file.filename}{file_extension}")
         
         with open(file_path, "wb") as buffer:
             content = await file.read()
@@ -66,7 +66,7 @@ async def upload_file(file: UploadFile = File(...)):
         
         return FileUploadResponse(
             message="File uploaded and indexed successfully",
-            file_id=file_id,
+            file_id=file_id_no_ext,
             filename=file.filename,
             file_type=file_extension
         )
