@@ -6,7 +6,7 @@ load_dotenv()
 class Config:
     # API Configuration
     API_TITLE = "RAG Chatbot API"
-    API_VERSION = "1.0.0"
+    API_VERSION = "2.0.0"
     DEBUG = os.getenv("DEBUG", "False").lower() == "true"
     
     # Gemini API Configuration

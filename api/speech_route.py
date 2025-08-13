@@ -54,8 +54,8 @@ async def handle_speech(audio_file: UploadFile = File(...)):
             # Convert audio to WAV if needed for Whisper
             wav_path = await convert_audio_format(temp_audio_path)
             
-            # Transcribe audio to text
-            transcription = await speech_to_text.transcribe(wav_path)
+            # Transcribe audio to text with forced Burmese language detection
+            transcription = await speech_to_text.transcribe_burmese(wav_path)
             
             if not transcription.strip():
                 raise HTTPException(

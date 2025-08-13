@@ -1,6 +1,18 @@
 # Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
+# Install system dependencies
+# RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y wget xz-utils \
+    && wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz \
+    && tar -xf ffmpeg-release-amd64-static.tar.xz \
+    && mv ffmpeg-*-amd64-static/ffmpeg /usr/local/bin/ \
+    && mv ffmpeg-*-amd64-static/ffprobe /usr/local/bin/ \
+    && rm -rf ffmpeg-*-amd64-static ffmpeg-release-amd64-static.tar.xz \
+    && apt-get remove -y wget xz-utils && apt-get autoremove -y
+
+
 # Set the working directory in the container
 WORKDIR /app
 
