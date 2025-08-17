@@ -1,3 +1,8 @@
+wheelhouse/
+GEMINI_SPEECH_TRANSCRIPTION.md
+TENSOR_PADDING_FIX.md
+
+
 # Python
 __pycache__/
 *.py[cod]

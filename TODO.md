@@ -54,3 +54,4 @@ Run the API: python main.py
 Test with: python test_api.py
 Access API docs at: http://localhost:8000/docs
 The API fully implements the flows described in flow.md and follows the architecture outlined in structure.md. It's ready to serve your frontend with all the RAG chatbot functionality you need!
+

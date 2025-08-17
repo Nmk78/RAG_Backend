@@ -23,7 +23,7 @@ class Config:
     # File Upload Configuration
     UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./data/uploads")
     MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "10")) * 1024 * 1024  # 10MB default
-    ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".wav", ".mp3", ".m4a"}
+    ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".wav", ".mp3", ".m4a", ".ogg"}
     
     # RAG Configuration
     CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
