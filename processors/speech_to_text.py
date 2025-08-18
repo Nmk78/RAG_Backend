@@ -77,84 +77,29 @@ class SpeechToText:
             else:
                 prompt = "Please transcribe this audio accurately, preserving the original language."
             
-            # Try using Gemini's audio transcription
-            try:
-                from google import genai
-                
-                # Create content with proper structure
-                content = {
-                    "contents": [{
-                        "parts": [
-                            {"text": prompt},
-                            {
-                                "inline_data": {
-                                    "mime_type": self._get_mime_type(audio_file_path),
-                                    "data": audio_data
-                                }
-                            }
-                        ]
-                    }]
-                }
-                
-                response = await asyncio.to_thread(
-                    self.gemini_client.client.models.generate_content,
-                    model=self.gemini_client.chat_model,
-                    **content
-                )
-                
-                transcription = getattr(response, "text", "").strip()
-                if transcription:
-                    return transcription
-                    
-            except Exception as e:
-                logger.warning(f"Gemini audio transcription failed: {str(e)}")
-                # Fall back to Whisper-based transcription
-                logger.info("Falling back to Whisper-based transcription...")
-                return await self._transcribe_with_whisper_fallback(audio_file_path, language)
+            # Use Gemini's audio transcription with key rotation
+            response = await self.gemini_client._with_key_rotation(
+                lambda: self.gemini_client.model.generate_content([
+                    prompt,
+                    {
+                        "mime_type": self._get_mime_type(audio_file_path),
+                        "data": audio_data,
+                    },
+                ])
+            )
+            
+            transcription = getattr(response, "text", "").strip()
+            if transcription:
+                return transcription
+            
+            logger.warning("Gemini returned empty transcription")
+            return ""
             
         except Exception as e:
             logger.error(f"Error in Gemini transcription: {str(e)}")
             raise
     
-    async def _transcribe_with_whisper_fallback(self, audio_file_path: str, language: str = "auto") -> str:
-        """
-        Fallback transcription using Whisper (the original implementation)
-        """
-        try:
-            # Import Whisper dependencies
-            try:
-                import whisper
-            except ImportError:
-                raise Exception("Whisper not available. Please install openai-whisper: pip install openai-whisper")
-            
-            # Load Whisper model
-            logger.info("Loading Whisper model for fallback transcription...")
-            model = await asyncio.to_thread(whisper.load_model, "base")
-            
-            # Transcribe with Whisper
-            logger.info(f"Transcribing with Whisper (language: {language})")
-            
-            if language == "auto":
-                result = await asyncio.to_thread(model.transcribe, audio_file_path)
-            elif language == "my":
-                result = await asyncio.to_thread(model.transcribe, audio_file_path, language="my")
-            elif language == "en":
-                result = await asyncio.to_thread(model.transcribe, audio_file_path, language="en")
-            else:
-                result = await asyncio.to_thread(model.transcribe, audio_file_path)
-            
-            transcription = result.get("text", "").strip()
-            
-            if not transcription:
-                logger.warning("Whisper returned empty transcription")
-                return ""
-            
-            logger.info(f"Whisper transcription completed: {len(transcription)} characters")
-            return transcription
-            
-        except Exception as e:
-            logger.error(f"Error in Whisper fallback transcription: {str(e)}")
-            raise
+    
     
     async def _read_audio_file(self, audio_file_path: str) -> str:
         """
@@ -215,16 +160,14 @@ class SpeechToText:
         Get information about the transcription service
         """
         return {
-            "service": "Hybrid (Gemini + Whisper Fallback)",
+            "service": "Gemini",
             "primary_model": getattr(self.gemini_client, 'chat_model', 'Unknown') if self.gemini_client else 'Not Available',
-            "fallback_model": "Whisper (openai-whisper)",
             "supported_languages": self.get_supported_languages(),
             "capabilities": [
                 "Automatic language detection",
                 "High accuracy transcription",
                 "Support for multiple audio formats",
-                "Burmese and English language support",
-                "Automatic fallback to Whisper if Gemini fails"
+                "Burmese and English language support"
             ]
         }
     

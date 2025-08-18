@@ -11,6 +11,8 @@ class Config:
     
     # Gemini API Configuration
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    # Optional: comma-separated list of keys for rotation
+    GEMINI_API_KEYS = [k.strip() for k in os.getenv("GEMINI_API_KEYS", "").split(",") if k.strip()]
     GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     # GEMINI_MODEL = "gemini-2.5-flash"
     GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "models/embedding-001")
@@ -23,7 +25,7 @@ class Config:
     # File Upload Configuration
     UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./data/uploads")
     MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "10")) * 1024 * 1024  # 10MB default
-    ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".wav", ".mp3", ".m4a", ".ogg"}
+    ALLOWED_EXTENSIONS = {".pdf", ".docx", ".txt", ".wav", ".mp3", ".m4a", ".ogg", ".png", ".jpg", ".jpeg", ".webp"}
     
     # RAG Configuration
     CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "1000"))
@@ -42,11 +44,11 @@ class Config:
 
 # Validate required environment variables
 def validate_config():
-    required_vars = ["GEMINI_API_KEY"]
-    missing_vars = [var for var in required_vars if not getattr(Config, var)]
-    
-    if missing_vars:
-        raise ValueError(f"Missing required environment variables: {', '.join(missing_vars)}")
+    # At least one API key must be provided either via GEMINI_API_KEY or GEMINI_API_KEYS
+    has_single_key = bool(Config.GEMINI_API_KEY)
+    has_key_list = bool(Config.GEMINI_API_KEYS)
+    if not (has_single_key or has_key_list):
+        raise ValueError("Missing required environment variables: provide GEMINI_API_KEY or GEMINI_API_KEYS")
 
 # Create directories if they don't exist
 def create_directories():

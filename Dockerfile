@@ -16,11 +16,23 @@ RUN apt-get update && apt-get install -y wget xz-utils \
 # Set the working directory in the container
 WORKDIR /app
 
+# COPY wheelhouse ./wheelhouse
+
 # Copy requirements first for better caching
 COPY requirements.txt .
 
 # Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --timeout 200 -r requirements.txt
+ 
+
+# COPY wheelhouse ./wheelhouse
+# RUN pip install --find-links=./wheelhouse -r requirements.txt
+
+
+# RUN pip install --no-cache-dir -r requirements.txt
+# RUN pip install --no-cache-dir --no-index \
+#     --find-links=./wheelhouse \
+#     -r requirements.txt
 
 # Copy the rest of your code
 COPY . .

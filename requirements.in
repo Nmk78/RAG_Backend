@@ -1,57 +1,35 @@
 # Core framework
 fastapi
 uvicorn
-starlette
 pydantic
 
-# Database / ORM
-SQLAlchemy
+# Vector database
 chromadb
-chroma-hnswlib
-faiss-cpu
 
 # AI / ML
-torch==2.3.1
-faster-whisper>=1.0.0     # new versions support tokenizers>=0.15
-transformers==4.36.2
-tokenizers
-huggingface-hub
-onnxruntime
+numpy
 
 # LangChain + integrations
 langchain
-langchain-core
-langchain-community
-langchain-google-genai
-langsmith
 
-# Google AI APIs
+# # Google AI APIs
+# google-genai
 google-generativeai
-google-genai
-google-ai-generativelanguage
 
-# Utilities
-aiohttp
-tenacity
-sympy
-numpy
-requests
-httpx
+# File processing
 python-docx
 PyPDF2
+Pillow
+
+# Utilities
 python-dotenv
+
+#debug
+protobuf<6,>=5.26.1
+
+
 pydub
-tqdm
-coloredlogs
-rich
 
-# Security
-bcrypt
-cryptography
-python-jose
-passlib
+google-generativeai>=0.4.0
 
-# Others you explicitly need
-kubernetes
-grpcio
-grpcio-status
+python-multipart
