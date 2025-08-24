@@ -82,9 +82,20 @@ async def upload_file(file: UploadFile = File(...)):
 @router.get("/files")
 async def list_uploaded_files():
     """
-    List all uploaded files (placeholder for future implementation)
+    List all uploaded files from the vector store
     """
-    return {"message": "File listing feature coming soon"}
+    try:
+        from retriever.vectorstore import VectorStore
+        vector_store = VectorStore()
+        
+        if hasattr(vector_store, 'mongodb_store'):
+            files = await vector_store.mongodb_store.list_files()
+            return {"files": files, "count": len(files)}
+        else:
+            return {"message": "File listing only available with MongoDB vector store"}
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error listing files: {str(e)}")
 
 @router.delete("/file/{file_id}")
 async def delete_file(file_id: str):

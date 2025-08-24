@@ -5,6 +5,9 @@ pydantic
 
 # Vector database
 chromadb
+pymongo
+motor
+pymilvus
 
 # AI / ML
 numpy
@@ -23,6 +26,8 @@ Pillow
 
 # Utilities
 python-dotenv
+passlib[bcrypt]
+python-jose[cryptography]
 
 #debug
 protobuf<6,>=5.26.1

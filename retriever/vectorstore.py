@@ -7,6 +7,8 @@ import numpy as np
 
 from config import Config
 from services.gemini_client import GeminiClient
+from retriever.mongodb_vectorstore import MongoDBVectorStore
+from retriever.zilliz_vectorstore import ZillizVectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,10 @@ class VectorStore:
             self._init_chroma()
         elif self.vector_store_type == "faiss":
             self._init_faiss()
+        elif self.vector_store_type == "mongodb":
+            self._init_mongodb()
+        elif self.vector_store_type == "zilliz":
+            self._init_zilliz()
         else:
             raise ValueError(f"Unsupported vector store type: {self.vector_store_type}")
     
@@ -61,6 +67,30 @@ class VectorStore:
             logger.error(f"Error initializing FAISS: {str(e)}")
             raise
     
+    def _init_mongodb(self):
+        """
+        Initialize MongoDB Atlas vector store
+        """
+        try:
+            self.mongodb_store = MongoDBVectorStore()
+            logger.info("MongoDB Atlas vector store initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Error initializing MongoDB Atlas: {str(e)}")
+            raise
+    
+    def _init_zilliz(self):
+        """
+        Initialize Zilliz Cloud vector store
+        """
+        try:
+            self.zilliz_store = ZillizVectorStore()
+            logger.info("Zilliz Cloud vector store initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Error initializing Zilliz Cloud: {str(e)}")
+            raise
+    
     async def add_documents(self, documents: List[str], metadata: Dict[str, Any] = None) -> None:
         """
         Add documents to vector store
@@ -80,6 +110,10 @@ class VectorStore:
                 await self._add_to_chroma(ids, documents, embeddings, metadatas)
             elif self.vector_store_type == "faiss":
                 await self._add_to_faiss(ids, documents, embeddings, metadatas)
+            elif self.vector_store_type == "mongodb":
+                await self.mongodb_store.add_documents(documents, metadata)
+            elif self.vector_store_type == "zilliz":
+                await self.zilliz_store.add_documents(documents, metadata)
             
             logger.info(f"Added {len(documents)} documents to vector store")
             
@@ -130,6 +164,10 @@ class VectorStore:
                 return await self._search_chroma(query_vector, k)
             elif self.vector_store_type == "faiss":
                 return await self._search_faiss(query_vector, k)
+            elif self.vector_store_type == "mongodb":
+                return await self.mongodb_store.similarity_search(query, k)
+            elif self.vector_store_type == "zilliz":
+                return await self.zilliz_store.similarity_search(query, k)
             
         except Exception as e:
             logger.error(f"Error in similarity search: {str(e)}")
@@ -148,6 +186,10 @@ class VectorStore:
                 return await self._search_chroma_with_filter(query_vector, filter_dict, k)
             elif self.vector_store_type == "faiss":
                 return await self._search_faiss_with_filter(query_vector, filter_dict, k)
+            elif self.vector_store_type == "mongodb":
+                return await self.mongodb_store.similarity_search_with_filter(query, filter_dict, k)
+            elif self.vector_store_type == "zilliz":
+                return await self.zilliz_store.similarity_search_with_filter(query, filter_dict, k)
             
         except Exception as e:
             logger.error(f"Error in filtered similarity search: {str(e)}")
@@ -249,6 +291,10 @@ class VectorStore:
             elif self.vector_store_type == "faiss":
                 # TODO: Implement FAISS deletion
                 raise NotImplementedError("FAISS deletion not yet implemented")
+            elif self.vector_store_type == "mongodb":
+                await self.mongodb_store.delete_by_metadata(filter_dict)
+            elif self.vector_store_type == "zilliz":
+                await self.zilliz_store.delete_by_metadata(filter_dict)
                 
         except Exception as e:
             logger.error(f"Error deleting documents: {str(e)}")
@@ -273,6 +319,10 @@ class VectorStore:
                     "document_count": "unknown",
                     "status": "not implemented"
                 }
+            elif self.vector_store_type == "mongodb":
+                return await self.mongodb_store.get_collection_stats()
+            elif self.vector_store_type == "zilliz":
+                return await self.zilliz_store.get_collection_stats()
                 
         except Exception as e:
             logger.error(f"Error getting collection stats: {str(e)}")

@@ -70,42 +70,6 @@ async def handle_text_with_file(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
 
-# @router.post("/text-with-file", response_model=TextWithFileResponse)
-# async def handle_text_with_file(    
-#     query: str = Form(...),
-#     file: UploadFile = File(...)
-# ):
-#     """
-#     Handle text queries with specific file context.
-#     The file is uploaded and indexed before answering the query.
-#     """
-#     # Save file to data/temp/
-#     temp_dir = "data/temp"
-#     os.makedirs(temp_dir, exist_ok=True)
-#     temp_filename = f"{uuid.uuid4()}_{file.filename}"
-#     file_id = os.path.splitext(temp_filename)[0]  # This will be used as the file_id in the vector DB
-#     temp_path = os.path.join(temp_dir, temp_filename)
-#     with open(temp_path, "wb") as buffer:
-#         shutil.copyfileobj(file.file, buffer)
-
-#     try:
-#         # Read file content as text
-#         with open(temp_path, "r", encoding="utf-8", errors="ignore") as f:
-#             text_content = f.read()
-
-#         # Index the file content in the vector store
-#         await orchestrator.process_file(file_id=file_id, text_content=text_content, filename=file.filename)
-
-#         # Now answer the query using the indexed file context
-#         response = await orchestrator.handle_file_question(query, file_id=file_id)
-
-#         return TextWithFileResponse(
-#             response=response,
-#             query=query,
-#             file=file.filename
-#         )
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"Error processing file-specific query: {str(e)}")
 
 @router.get("/chat-history")
 async def get_chat_history():

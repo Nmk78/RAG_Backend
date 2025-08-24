@@ -8,7 +8,7 @@ A powerful Retrieval-Augmented Generation (RAG) chatbot API built with FastAPI, 
 - **File Upload & Processing**: Support for PDF, DOCX, and TXT files
 - **File-Specific Queries**: Ask questions about specific uploaded documents
 - **Speech-to-Text**: Convert audio input to text and process with RAG
-- **Vector Storage**: Chroma vector database for efficient document retrieval
+- **Vector Storage**: MongoDB Atlas vector database for scalable document retrieval
 - **Async Processing**: Full async support for better performance
 - **RESTful API**: Clean REST endpoints with comprehensive documentation
 
@@ -17,7 +17,7 @@ A powerful Retrieval-Augmented Generation (RAG) chatbot API built with FastAPI, 
 ```
 Frontend → FastAPI → Orchestrator → RAG Pipeline → Gemini API
                 ↓
-            Vector Store (Chroma)
+            Vector Store (MongoDB Atlas)
                 ↓
             Document Processing
 ```
@@ -28,6 +28,7 @@ Frontend → FastAPI → Orchestrator → RAG Pipeline → Gemini API
 
 - Python 3.8+
 - Google Gemini API key
+- MongoDB Atlas cluster (M10+ for vector search)
 - FFmpeg (for audio processing)
 
 ### Installation
@@ -46,15 +47,38 @@ Frontend → FastAPI → Orchestrator → RAG Pipeline → Gemini API
 3. **Set up environment variables**
    ```bash
    cp env.example .env
-   # Edit .env with your Gemini API key and other settings
+   # Edit .env with your Gemini API key and MongoDB Atlas connection string
    ```
 
-4. **Run the API**
+4. **Set up MongoDB Atlas**
+   ```bash
+   # Run the MongoDB setup script
+   python setup_mongodb.py
+   ```
+
+5. **Run the API**
    ```bash
    python main.py
    ```
 
 The API will be available at `http://localhost:8000`
+
+## 🔄 MongoDB Atlas Migration
+
+This project now uses MongoDB Atlas for vector storage instead of ChromaDB. For detailed migration instructions, see [MONGODB_MIGRATION_GUIDE.md](MONGODB_MIGRATION_GUIDE.md).
+
+### Quick Migration Steps:
+
+1. **Create MongoDB Atlas cluster** (M10+ for vector search)
+2. **Update environment variables**:
+   ```env
+   VECTOR_STORE_TYPE=mongodb
+   MONGODB_URI=your_mongodb_atlas_connection_string
+   MONGODB_DATABASE=rag_chatbot
+   MONGODB_COLLECTION=documents
+   ```
+3. **Run setup script**: `python setup_mongodb.py`
+4. **Test integration**: `python test_mongodb_integration.py`
 
 ## 📚 API Endpoints
 

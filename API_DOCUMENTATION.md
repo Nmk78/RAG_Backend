@@ -1,376 +1,472 @@
 # RAG Chatbot API Documentation
 
 ## Overview
+A comprehensive RAG (Retrieval-Augmented Generation) chatbot API with user authentication, chat sessions, and multi-modal file processing.
 
-The RAG Chatbot API is a comprehensive AI-powered chatbot service that supports text queries, speech-to-text processing, and file-based question answering. The API uses Retrieval-Augmented Generation (RAG) to provide contextually relevant responses.
-
-**Base URL:** `http://localhost:8000`  
-**API Version:** 2.0.0  
-**Base Path:** `/api/v2`
-
-## Table of Contents
-
-- [Authentication](#authentication)
-- [Health Check](#health-check)
-- [Text Processing](#text-processing)
-- [Speech Processing](#speech-processing)
-- [File Management](#file-management)
-- [Error Handling](#error-handling)
-- [Configuration](#configuration)
+## Base URL
+```
+http://localhost:8000/api/v2
+```
 
 ## Authentication
+Most endpoints require JWT Bearer token authentication. Include in headers:
+```
+Authorization: Bearer <your_jwt_token>
+```
 
-Currently, the API does not require authentication. However, ensure you have valid Gemini API keys configured in your environment variables.
+---
 
-## Health Check
+## 🔐 Authentication Endpoints
 
-### Get API Status
-
+### Register User
 ```http
-GET /
+POST /auth/register
 ```
-
-**Response:**
-```json
-{
-  "message": "RAG Chatbot API is running",
-  "version": "2.0.0",
-  "status": "healthy"
-}
-```
-
-### Detailed Health Check
-
-```http
-GET /health
-```
-
-**Response:**
-```json
-{
-  "status": "healthy",
-  "api_version": "2.0.0",
-  "vector_store": "chroma",
-  "model": "gemini-2.5-flash"
-}
-```
-
-## Text Processing
-
-### Text Query
-
-Process text-based queries using the RAG pipeline.
-
-```http
-POST /api/v2/text
-```
-
 **Request Body:**
 ```json
 {
-  "query": "What is machine learning?"
+  "email": "user@example.com",
+  "username": "username",
+  "password": "secure_password",
+  "full_name": "Full Name"
 }
 ```
-
-**Response:**
+**Response:** `201 Created`
 ```json
 {
-  "response": "Machine learning is a subset of artificial intelligence...",
-  "query": "What is machine learning?"
+  "id": "user_id",
+  "email": "user@example.com",
+  "username": "username",
+  "full_name": "Full Name",
+  "role": "user",
+  "status": "active",
+  "created_at": "2024-01-01T00:00:00Z",
+  "last_login": null
 }
 ```
 
-### Text Query with File Context
-
-Process text queries with specific file context. The file is uploaded and its content is used as context for answering the query.
-
+### Login User
 ```http
-POST /api/v2/text-with-file
+POST /auth/login
 ```
-
-**Request:** (multipart/form-data)
-- `query` (string): The text query
-- `file` (file): File to use as context (supports: PDF, DOCX, TXT, images)
-
-**Supported File Types:**
-- Documents: `.pdf`, `.docx`, `.txt`
-- Images: `.png`, `.jpg`, `.jpeg`, `.webp`
-
-**Response:**
+**Request Body (form-data):**
+```
+username: user@example.com
+password: secure_password
+```
+**Response:** `200 OK`
 ```json
 {
-  "response": "Based on the document content...",
-  "query": "What does the document say about AI?",
-  "file": "document.pdf"
+  "access_token": "jwt_token_here",
+  "token_type": "bearer",
+  "expires_in": 1800,
+  "user": {
+    "id": "user_id",
+    "email": "user@example.com",
+    "username": "username",
+    "full_name": "Full Name",
+    "role": "user",
+    "status": "active",
+    "created_at": "2024-01-01T00:00:00Z",
+    "last_login": "2024-01-01T00:00:00Z"
+  }
 }
 ```
 
-### Chat History
-
+### Get Current User Info
 ```http
-GET /api/v2/chat-history
+GET /auth/me
 ```
+**Headers:** `Authorization: Bearer <token>`
+**Response:** `200 OK` - User object
 
-**Response:**
-```json
-{
-  "message": "Chat history feature coming soon"
-}
-```
-
-## Speech Processing
-
-### Speech to Text with Auto Language Detection
-
-Convert speech to text and process with RAG pipeline using automatic language detection.
-
+### Update Current User
 ```http
-POST /api/v2/speech
+PUT /auth/me
 ```
-
-**Request:** (multipart/form-data)
-- `audio_file` (file): Audio file to transcribe
-
-**Supported Audio Formats:**
-- `.wav`, `.mp3`, `.m4a`
-
-**File Size Limit:** 10MB
-
-**Response:**
+**Headers:** `Authorization: Bearer <token>`
+**Request Body:**
 ```json
 {
-  "transcription": "What is artificial intelligence?",
-  "response": "Artificial intelligence is a branch of computer science...",
-  "audio_file_id": "uuid-string"
+    "email": "naymyokhant908@gmail.com",
+    "username": "nmk",
+    "full_name": "Nay Myo Khant",
+    "id": "68ab18cddbcfaed4bfd148f7",
+    "role": "user",
+    "status": "active",
+    "created_at": "2025-08-24T13:51:09.817000",
+    "last_login": "2025-08-24T13:53:05.857000"
 }
 ```
 
-### Speech to Text with Specific Language
-
-Convert speech to text with specified language and process with RAG pipeline.
-
+### Create Admin User (Admin Only)
 ```http
-POST /api/v2/speech/{language}
+POST /auth/admin/create
 ```
+**Headers:** `Authorization: Bearer <admin_token>`
+**Request Body:** Same as register
+**Response:** User with admin role
 
-**Path Parameters:**
-- `language` (string): Language code (`auto`, `en`, `my`)
+---
 
-**Request:** (multipart/form-data)
-- `audio_file` (file): Audio file to transcribe
+## 💬 Chat Endpoints
 
-**Supported Languages:**
-- `auto`: Automatic language detection
-- `en`: English
-- `my`: Burmese
-
-**Response:**
-```json
-{
-  "transcription": "What is artificial intelligence?",
-  "response": "Artificial intelligence is a branch of computer science...",
-  "audio_file_id": "uuid-string"
-}
-```
-
-### Streaming Speech (Future Feature)
-
+### Create Chat Session
 ```http
-POST /api/v2/speech-stream
+POST /chat/new-session
 ```
-
-**Response:**
+**Headers:** `Authorization: Bearer <token>` (optional for anonymous)
+**Request Body:**
 ```json
 {
-  "message": "Streaming speech feature coming soon"
+  "is_temporary": false,
 }
 ```
+**Response:** `201 Created` - Chat session object
 
-## File Management
+**Session Types:**
+- **Temporary Sessions** (`is_temporary: true`): Expire in 3 hours, no authentication required
+- **Normal Sessions** (`is_temporary: false`): Expire in 30 days for authenticated users
+- **Anonymous Sessions**: No expiration, no authentication required
 
-### Upload and Index File
-
-Upload a file for RAG indexing. The file content will be extracted and indexed for future queries.
-
+### Get User Sessions
 ```http
-POST /api/v2/file
+GET /chat/sessions?limit=50&offset=0
 ```
+**Headers:** `Authorization: Bearer <token>`
+**Response:** List of user's chat sessions (expired sessions are automatically filtered out)
 
-**Request:** (multipart/form-data)
-- `file` (file): File to upload and index
-
-**Supported File Types:**
-- Documents: `.pdf`, `.docx`, `.txt`
-- Audio: `.wav`, `.mp3`, `.m4a`, `.ogg`
-- Images: `.png`, `.jpg`, `.jpeg`, `.webp`
-
-**File Size Limit:** 10MB
-
-**Response:**
-```json
-{
-  "message": "File uploaded and indexed successfully",
-  "file_id": "uuid-string_filename.pdf",
-  "filename": "document.pdf",
-  "file_type": ".pdf"
-}
-```
-
-### List Uploaded Files
-
+### Get Specific Session
 ```http
-GET /api/v2/files
+GET /chat/sessions/{session_id}
 ```
+**Headers:** `Authorization: Bearer <token>` (if session belongs to user)
+**Response:** Chat session object
 
-**Response:**
+### Update Session
+```http
+PUT /chat/sessions/{session_id}
+```
+**Headers:** `Authorization: Bearer <token>`
+**Request Body:**
 ```json
 {
-  "message": "File listing feature coming soon"
+  "title": "Updated Title",
+  "is_active": true
 }
 ```
+
+### Close Session
+```http
+DELETE /chat/sessions/{session_id}
+```
+**Headers:** `Authorization: Bearer <token>`
+**Response:** `204 No Content`
+
+### Get Session Messages
+```http
+GET /chat/sessions/{session_id}/messages?limit=100&offset=0
+```
+**Headers:** `Authorization: Bearer <token>` (if session belongs to user)
+**Response:** List of chat messages
+
+### Get Chat History
+```http
+GET /chat/sessions/{session_id}/history
+```
+**Headers:** `Authorization: Bearer <token>` (if session belongs to user)
+**Response:** Complete chat history with session and messages
+
+### Chat with AI
+```http
+POST /chat/sessions/{session_id}/chat
+```
+**Headers:** `Authorization: Bearer <token>` (if session belongs to user)
+**Request Body:**
+```json
+{
+  "role": "user",
+  "content": "Hello, how are you?",
+  "message_type": "text"
+}
+```
+**Response:** AI response with metadata
+```json
+{
+  "session_id": "session_id",
+  "message_id": "message_id",
+  "content": "AI response here",
+  "metadata": {"response_time_ms": 150},
+  "created_at": "2024-01-01T00:00:00Z",
+  "tokens_used": 25,
+  "response_time_ms": 150
+}
+```
+
+### Get Session Statistics
+```http
+GET /chat/sessions/{session_id}/stats
+```
+**Headers:** `Authorization: Bearer <token>` (if session belongs to user)
+**Response:** Session statistics including message counts and token usage
+
+
+
+### Search Messages
+```http
+GET /chat/search?query=search_term&limit=20
+```
+**Headers:** `Authorization: Bearer <token>`
+**Response:** Search results with relevance scores
+
+---
+
+## 📁 File Processing Endpoints
+
+### Upload File
+```http
+POST /file/upload
+```
+**Headers:** `Authorization: Bearer <token>` (optional)
+**Body:** `multipart/form-data` with file
+**Response:** File processing result with chunks and metadata
+
+### Get File List
+```http
+GET /file/list
+```
+**Headers:** `Authorization: Bearer <token>` (optional)
+**Response:** List of uploaded files
 
 ### Delete File
-
-Delete a specific file and its indexed content from the vector store.
-
 ```http
-DELETE /api/v2/file/{file_id}
+DELETE /file/{file_id}
 ```
+**Headers:** `Authorization: Bearer <token>` (if file belongs to user)
+**Response:** `204 No Content`
 
-**Path Parameters:**
-- `file_id` (string): The file ID to delete
+---
 
-**Response:**
+## 🎤 Speech Processing Endpoints
+
+### Upload Audio
+```http
+POST /speech/upload
+```
+**Headers:** `Authorization: Bearer <token>` (optional)
+**Body:** `multipart/form-data` with audio file
+**Response:** Transcribed text and processing metadata
+
+### Speech to Text
+```http
+POST /speech/transcribe
+```
+**Headers:** `Authorization: Bearer <token>` (optional)
+**Body:** `multipart/form-data` with audio file
+**Response:** Transcribed text
+
+---
+
+## 📝 Text Processing Endpoints
+
+### Process Text
+```http
+POST /text/process
+```
+**Headers:** `Authorization: Bearer <token>` (optional)
+**Request Body:**
 ```json
 {
-  "message": "File uuid-string deleted successfully"
+  "text": "Your text here",
+  "session_id": "optional_session_id"
+}
+```
+**Response:** AI response with context and metadata
+
+---
+
+## 🔍 Public Endpoints (No Auth Required)
+
+### Health Check
+```http
+GET /
+GET /health
+```
+**Response:** API status and configuration info
+
+---
+
+## 📊 Data Models
+
+### User Models
+```typescript
+enum UserRole {
+  USER = "user",
+  ADMIN = "admin"
+}
+
+enum UserStatus {
+  ACTIVE = "active",
+  INACTIVE = "inactive",
+  SUSPENDED = "suspended"
+}
+
+interface User {
+  id: string;
+  email: string;
+  username: string;
+  full_name?: string;
+  role: UserRole;
+  status: UserStatus;
+  created_at: string;
+  last_login?: string;
 }
 ```
 
-## Error Handling
+### Chat Models
+```typescript
+enum MessageRole {
+  USER = "user",
+  ASSISTANT = "assistant",
+  SYSTEM = "system"
+}
 
-The API returns standard HTTP status codes and error messages:
+enum MessageType {
+  TEXT = "text",
+  FILE_UPLOAD = "file_upload",
+  AUDIO = "audio"
+}
 
-### Common Error Responses
+interface ChatSession {
+  id: string;
+  user_id?: string;
+  title?: string;
+  created_at: string;
+  updated_at: string;
+  message_count: number;
+  total_tokens: number;
+  is_active: boolean;
+  metadata?: Record<string, any>;
+}
 
-**400 Bad Request:**
-```json
-{
-  "detail": "Invalid audio file format. Supported: .wav, .mp3, .m4a"
+interface ChatMessage {
+  id: string;
+  session_id: string;
+  role: MessageRole;
+  content: string;
+  message_type: MessageType;
+  metadata?: Record<string, any>;
+  created_at: string;
+  tokens_used?: number;
+  response_time_ms?: number;
 }
 ```
 
-**422 Validation Error:**
-```json
-{
-  "detail": [
-    {
-      "loc": ["body", "query"],
-      "msg": "field required",
-      "type": "value_error.missing"
-    }
-  ]
-}
-```
+---
 
-**500 Internal Server Error:**
-```json
-{
-  "detail": "Error processing text query: [error details]"
-}
-```
+## 🚀 Quick Start
 
-## Configuration
-
-### Environment Variables
-
-The API uses the following environment variables (configure in `.env` file):
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `GEMINI_API_KEY` | Gemini API key | Required |
-| `GEMINI_API_KEYS` | Comma-separated list of API keys for rotation | Optional |
-| `GEMINI_MODEL` | Gemini model to use | `gemini-2.5-flash` |
-| `GEMINI_EMBEDDING_MODEL` | Embedding model | `models/embedding-001` |
-| `VECTOR_STORE_TYPE` | Vector store type (`chroma` or `faiss`) | `chroma` |
-| `CHROMA_PERSIST_DIRECTORY` | ChromaDB persistence directory | `./data/chroma_db` |
-| `FAISS_INDEX_PATH` | FAISS index file path | `./data/faiss_index` |
-| `UPLOAD_DIR` | File upload directory | `./data/uploads` |
-| `TEMP_AUDIO_DIR` | Temporary audio directory | `./data/temp` |
-| `MAX_FILE_SIZE` | Maximum file size in MB | `10` |
-| `CHUNK_SIZE` | Text chunk size for RAG | `1000` |
-| `CHUNK_OVERLAP` | Text chunk overlap | `200` |
-| `MAX_CONTEXT_LENGTH` | Maximum context length | `4000` |
-| `TOP_K_RETRIEVAL` | Number of top documents to retrieve | `5` |
-| `WHISPER_MODEL` | Whisper model for speech recognition | `base` |
-| `DEBUG` | Enable debug mode | `False` |
-
-### API Configuration
-
-- **Title:** RAG Chatbot API
-- **Version:** 2.0.0
-- **CORS:** Enabled for all origins (configure properly for production)
-- **File Size Limits:** 10MB for all file uploads
-- **Supported Languages:** English, Burmese, Auto-detection
-
-## Usage Examples
-
-### cURL Examples
-
-**Text Query:**
+### 1. Setup Environment
 ```bash
-curl -X POST "http://localhost:8000/api/v2/text" \
+# Copy environment template
+cp env.example .env
+
+# Set required variables
+MONGODB_URI=your_mongodb_connection_string
+ZILLIZ_URI=your_zilliz_cluster_uri
+ZILLIZ_TOKEN=your_zilliz_token
+GEMINI_API_KEY=your_gemini_api_key
+SECRET_KEY=your_secret_key
+```
+
+### 2. Install Dependencies
+```bash
+pip install -r requirements.in
+```
+
+### 3. Create Admin User
+```bash
+python setup_admin.py
+```
+
+### 4. Start API
+```bash
+python main.py
+```
+
+### 5. Test Authentication
+```bash
+# Register user
+curl -X POST "http://localhost:8000/api/v2/auth/register" \
   -H "Content-Type: application/json" \
-  -d '{"query": "What is machine learning?"}'
+  -d '{"email":"test@example.com","username":"testuser","password":"password123","full_name":"Test User"}'
+
+# Login
+curl -X POST "http://localhost:8000/api/v2/auth/login" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "username=test@example.com&password=password123"
 ```
 
-**Speech Processing:**
-```bash
-curl -X POST "http://localhost:8000/api/v2/speech" \
-  -F "audio_file=@audio.wav"
+---
+
+## 🔒 Security Features
+
+- **JWT Authentication** with configurable expiration
+- **Password Hashing** using SHA256 with salt
+- **Role-based Access Control** (User/Admin)
+- **Session Management** with user isolation
+- **Input Validation** using Pydantic models
+
+---
+
+## 📈 Features
+
+### Public Features (No Login Required)
+- File upload and processing
+- Basic RAG chat functionality
+- Speech-to-text conversion
+- Health monitoring
+
+### User Features (Login Required)
+- Personal chat history
+- File management
+- Session persistence
+- Message search
+
+### Admin Features (Admin Role Required)
+- User management
+- System analytics
+- Advanced configuration
+
+---
+
+## 🐛 Error Handling
+
+All endpoints return consistent error responses:
+
+```json
+{
+  "detail": "Error message here"
+}
 ```
 
-**File Upload:**
-```bash
-curl -X POST "http://localhost:8000/api/v2/file" \
-  -F "file=@document.pdf"
-```
+**Common HTTP Status Codes:**
+- `200` - Success
+- `201` - Created
+- `400` - Bad Request
+- `401` - Unauthorized
+- `403` - Forbidden
+- `404` - Not Found
+- `422` - Validation Error
+- `500` - Internal Server Error
 
-**Text with File Context:**
-```bash
-curl -X POST "http://localhost:8000/api/v2/text-with-file" \
-  -F "query=What does this document say about AI?" \
-  -F "file=@document.pdf"
-```
+---
 
-### Python Examples
+## 📝 Notes
 
-```python
-import requests
-
-# Text query
-response = requests.post("http://localhost:8000/api/v2/text", 
-                        json={"query": "What is AI?"})
-print(response.json())
-
-# Speech processing
-with open("audio.wav", "rb") as f:
-    response = requests.post("http://localhost:8000/api/v2/speech",
-                           files={"audio_file": f})
-print(response.json())
-
-# File upload
-with open("document.pdf", "rb") as f:
-    response = requests.post("http://localhost:8000/api/v2/file",
-                           files={"file": f})
-print(response.json())
-```
-
-## Notes
-
-- All file uploads are temporarily stored and cleaned up after processing
-- Audio files are automatically converted to WAV format for processing
-- The API supports both single API key and API key rotation for Gemini
-- Vector store data persists between API restarts
-- File content is extracted and indexed for RAG-based question answering
-- Speech recognition supports automatic language detection and manual language specification
+- **Vector Storage**: Uses Zilliz Cloud for fast similarity search
+- **Document Storage**: MongoDB Atlas for user data and chat history
+- **AI Model**: Google Gemini for text generation and embeddings
+- **File Support**: PDF, DOCX, TXT, Audio (WAV, MP3, M4A)
+- **Session Management**: Supports both anonymous and authenticated sessions
+- **Token Tracking**: Monitors AI usage and response times

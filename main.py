@@ -17,6 +17,8 @@ from config import Config, validate_config, create_directories
 from api.text_route import router as text_router
 from api.file_route import router as file_router
 from api.speech_route import router as speech_router
+from api.auth_route import router as auth_router
+from api.chat_route import router as chat_router
 
 # Validate configuration and create directories
 try:
@@ -50,6 +52,8 @@ API_BASE_PREFIX = f"/api/v{api_major_version}"
 app.include_router(text_router, prefix=API_BASE_PREFIX, tags=["text"])
 app.include_router(file_router, prefix=API_BASE_PREFIX, tags=["file"])
 app.include_router(speech_router, prefix=API_BASE_PREFIX, tags=["speech"])
+app.include_router(auth_router, prefix=API_BASE_PREFIX, tags=["auth"])
+app.include_router(chat_router, prefix=API_BASE_PREFIX, tags=["chat"])
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
