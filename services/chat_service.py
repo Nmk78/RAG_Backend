@@ -146,18 +146,36 @@ class ChatService:
         try:
             message_id = str(ObjectId())
             now = datetime.utcnow()
-            
-            message_doc = {
-                "_id": message_id,
-                "session_id": session_id,
-                "role": message_data.role,
-                "content": message_data.content,
-                "message_type": message_data.message_type,
-                "metadata": message_data.metadata or {},
-                "created_at": now,
-                "tokens_used": tokens_used,
-                "response_time_ms": response_time_ms
-            }
+
+            print("message_data", message_data)
+
+            # Handle if message_data is a string or ChatMessageCreate
+            if isinstance(message_data, str):
+                # Assume string is the content, role is unknown
+                message_doc = {
+                    "_id": message_id,
+                    "session_id": session_id,
+                    "role": "user",  # Default role if not provided
+                    "content": message_data,
+                    "message_type": "text",  # Default to 'text'
+                    "metadata": {},
+                    "created_at": now,
+                    "tokens_used": tokens_used,
+                    "response_time_ms": response_time_ms
+                }
+            else:
+                msg_type = getattr(message_data, 'message_type', None) or "text"
+                message_doc = {
+                    "_id": message_id,
+                    "session_id": session_id,
+                    "role": getattr(message_data.role, 'value', message_data.role) if message_data.role else None,
+                    "content": message_data.content,
+                    "message_type": msg_type,
+                    "metadata": getattr(message_data, 'metadata', {}) or {},
+                    "created_at": now,
+                    "tokens_used": tokens_used,
+                    "response_time_ms": response_time_ms
+                }
             
             self.messages_collection.insert_one(message_doc)
             

@@ -248,6 +248,8 @@ async def get_session_messages(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve messages"
         )
+
+
 @router.get("/sessions/{session_id}/history", response_model=ChatHistory)
 async def get_chat_history(
     session_id: str,
@@ -285,6 +287,7 @@ async def get_chat_history(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve chat history"
         )
+
 @router.post("/sessions/{session_id}/chat", response_model=ChatResponse)
 async def chat_with_ai(
     session_id: str,
@@ -317,13 +320,16 @@ async def chat_with_ai(
             message,
             # metadata={"ip_address": request.client.host if request.client else None}
         )
+
+        print("🍕Message", message)
         
         # Get AI response using orchestrator
-        ai_response = await orchestrator.handle_text(message.content)
-        
+        ai_response_text = await orchestrator.handle_text(message.content)
+        ai_response = {"response": ai_response_text}
+
         bot_message = await chat_service.add_message(
             session_id, 
-            ai_response,
+            ai_response_text,
         )
         # Calculate response time
         response_time_ms = int((time.time() - start_time) * 1000)

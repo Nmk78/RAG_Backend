@@ -193,13 +193,15 @@ POST /chat/sessions/{session_id}/chat
 **Response:** AI response with metadata
 ```json
 {
-  "session_id": "session_id",
-  "message_id": "message_id",
-  "content": "AI response here",
-  "metadata": {"response_time_ms": 150},
-  "created_at": "2024-01-01T00:00:00Z",
-  "tokens_used": 25,
-  "response_time_ms": 150
+    "session_id": "68abdff02dfdd59e5821bfee",
+    "message_id": "68abe0172dfdd59e5821bff2",
+    "content": "မင်္ဂလာပါ! ကျွန်တော် ကောင်းပါတယ်။ သင်ဘယ်လိုနေထိုင်လဲ။",
+    "metadata": {
+        "response_time_ms": 7199
+    },
+    "created_at": "2025-08-25T04:01:27.291661",
+    "tokens_used": null,
+    "response_time_ms": 7199
 }
 ```
 
