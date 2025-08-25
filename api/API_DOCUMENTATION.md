@@ -337,7 +337,7 @@ Close/delete a chat session.
 
 ---
 
-### 6. Get Session Messages
+### 6. Get Session Messages (Not Tested)
 **GET** `/chat/sessions/{session_id}/messages`
 
 Get messages for a specific chat session.

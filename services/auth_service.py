@@ -33,6 +33,21 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
         return False
 
 class AuthService:
+    async def get_all_admin_users(self, limit: int = 10, offset: int = 0):
+        """Get all admin users"""
+        try:
+            cursor = self.users_collection.find({"role": "admin"}).skip(offset).limit(limit)
+            users = []
+            for user_doc in cursor:
+                user_dict = user_doc.copy()
+                if "hashed_password" in user_dict:
+                    del user_dict["hashed_password"]
+                user_dict["id"] = user_dict.pop("_id")
+                users.append(UserInDB(**user_dict))
+            return users
+        except Exception as e:
+            logger.error(f"Error getting admin users: {e}")
+            return []
     def __init__(self):
         self.client = MongoClient(Config.MONGODB_URI)
         self.db = self.client[Config.MONGODB_DATABASE]
@@ -80,6 +95,7 @@ class AuthService:
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, Config.SECRET_KEY, algorithm=Config.ALGORITHM)
         return encoded_jwt
+    
     
     def verify_token(self, token: str) -> Optional[TokenData]:
         """Verify and decode a JWT token"""
@@ -255,6 +271,7 @@ class AuthService:
             logger.error(f"Error creating admin user: {e}")
             raise
     
+        
     def close(self):
         """Close database connection"""
         self.client.close()

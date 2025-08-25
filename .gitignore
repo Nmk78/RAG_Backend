@@ -27,6 +27,11 @@ wheels/
 MANIFEST
 
 # Virtual environments
+# Ignore virtual environments
+env*/
+.venv/
+venv/
+
 venv/
 env/
 env2/

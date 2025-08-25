@@ -4,7 +4,7 @@ uvicorn
 pydantic
 
 # Vector database
-chromadb
+# chromadb
 pymongo
 motor
 pymilvus
@@ -38,3 +38,5 @@ pydub
 google-generativeai>=0.4.0
 
 python-multipart
+
+pydantic[email]

@@ -216,14 +216,31 @@ async def create_admin_user(
 @router.get("/admin/users", response_model=list[UserResponse])
 async def get_all_users(
     current_admin: UserResponse = Depends(get_current_admin_user),
-    limit: int = 100,
+    limit: int = 10,
     offset: int = 0
 ):
     """Get all users (admin only)"""
     try:
+        # if !current_admin ? raise HTTPException(
+        #     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        #     detail="Internal server error"
+        # )
         # This would need to be implemented in AuthService
-        # For now, returning empty list
-        return []
+        # users = await auth_service.get_all_users(limit, offset)
+        # return users
+        users = await auth_service.get_all_admin_users(limit, offset)
+        return [
+            UserResponse(
+            id=user.id,
+            email=user.email,
+            username=user.username,
+            full_name=user.full_name,
+            role=user.role,
+            status=user.status,
+            created_at=user.created_at,
+            last_login=user.last_login
+            ) for user in users
+        ]        
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
