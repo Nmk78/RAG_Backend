@@ -8,6 +8,22 @@ class MessageRole(str, Enum):
     ASSISTANT = "assistant"
     SYSTEM = "system"
 
+class TextRequest(BaseModel):
+    query: str
+
+class TextWithFileRequest(BaseModel):
+    query: str
+    file_id: str
+
+class TextResponse(BaseModel):
+    response: str
+    query: str
+
+class TextWithFileResponse(BaseModel):
+    response: str
+    query: str
+    file: str
+
 class MessageType(str, Enum):
     TEXT = "text"
     FILE_UPLOAD = "file_upload"

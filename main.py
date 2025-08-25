@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 
 from config import Config, validate_config, create_directories
-from api.text_route import router as text_router
+# from api.text_route import router as text_router
 from api.file_route import router as file_router
 from api.speech_route import router as speech_router
 from api.auth_route import router as auth_router
@@ -49,7 +49,7 @@ api_major_version = (Config.API_VERSION or "1").split(".")[0]
 API_BASE_PREFIX = f"/api/v{api_major_version}"
 
 # Include routers
-app.include_router(text_router, prefix=API_BASE_PREFIX, tags=["text"])
+# app.include_router(text_router, prefix=API_BASE_PREFIX, tags=["text"])
 app.include_router(file_router, prefix=API_BASE_PREFIX, tags=["file"])
 app.include_router(speech_router, prefix=API_BASE_PREFIX, tags=["speech"])
 app.include_router(auth_router, prefix=API_BASE_PREFIX, tags=["auth"])

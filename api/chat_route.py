@@ -1,3 +1,79 @@
+from fastapi import APIRouter, Form, File as FastAPIFile, UploadFile, Depends
+import os
+from processors.file_parser import FileParser
+# Chat with file endpoint
+from models.chat import TextWithFileResponse
+from api.auth_route import get_current_user
+from typing import Optional
+from models.user import UserResponse
+router = APIRouter()
+
+
+@router.post("/text-with-file", response_model=TextWithFileResponse)
+async def handle_text_with_file(
+    session_id: str = Form(...),
+    query: str = Form(...),
+    file: UploadFile = FastAPIFile(...),
+    current_user: Optional[UserResponse] = Depends(get_current_user)
+):
+    temp_dir = "data/temp"
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_filename = f"{uuid.uuid4()}_{file.filename}"
+    temp_path = os.path.join(temp_dir, temp_filename)
+    with open(temp_path, "wb") as buffer:
+        buffer.write(await file.read())
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    is_image = file_ext in {'.png', '.jpg', '.jpeg', '.webp'}
+    parser = FileParser()
+    try:
+        # Use FileParser to extract text from any supported file (text or image)
+        file_content = await parser.extract_text(temp_path)
+
+        # Store user message in MongoDB
+        from models.chat import ChatMessageCreate
+        from services.chat_service import ChatService
+        chat_service = ChatService(Config.MONGODB_URI)
+        user_message = ChatMessageCreate(role="user", content=file_content, message_type="file_upload", metadata={"filename": file.filename})
+        await chat_service.add_message(session_id, user_message)
+
+        # Pass file_content as context to the orchestrator (not indexed)
+        response = await orchestrator.handle_file_question(query=query, context=file_content, is_image=is_image)
+
+        # Store assistant message in MongoDB
+        assistant_message = ChatMessageCreate(role="assistant", content=response, message_type="text", metadata={"filename": file.filename})
+        await chat_service.add_message(session_id, assistant_message)
+
+        return TextWithFileResponse(
+            response=response,
+            query=query,
+            file=file.filename
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
+
+# Chat history endpoint for current user
+@router.get("/chat-history")
+async def get_chat_history(
+    current_user: UserResponse = Depends(get_current_user),
+    limit: int = 20,
+    offset: int = 0
+):
+    """
+    Get chat history for the current user
+    """
+    chat_service = ChatService(Config.MONGODB_URI)
+    try:
+        sessions = await chat_service.get_user_sessions(current_user.id, limit, offset)
+        history = []
+        for session in sessions:
+            messages = await chat_service.get_session_messages(session.id, limit=100)
+            history.append({
+                "session": session,
+                "messages": messages
+            })
+        return {"user_id": current_user.id, "history": history, "total_sessions": len(history)}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading chat history: {str(e)}")
 import traceback
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, status, Request

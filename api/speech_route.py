@@ -23,7 +23,7 @@ speech_to_text = SpeechToText()
 orchestrator = Orchestrator()
 
 @router.post("/speech", response_model=SpeechResponse)
-async def handle_speech(audio_file: UploadFile = File(...)):
+async def handle_speech(session_id: str, audio_file: UploadFile = File(...)):
     """
     Handle speech input: convert to text and process with RAG
     """
@@ -67,16 +67,27 @@ async def handle_speech(audio_file: UploadFile = File(...)):
             
             # Transcribe audio to text with automatic language detection
             transcription = await speech_to_text.transcribe_auto(wav_path)
-            
+
             if not transcription.strip():
                 raise HTTPException(
                     status_code=400,
                     detail="Could not transcribe audio. Please ensure clear speech."
                 )
-            
+
+            # Store user message in MongoDB
+            from models.chat import ChatMessageCreate
+            from services.chat_service import ChatService
+            chat_service = ChatService(Config.MONGODB_URI)
+            user_message = ChatMessageCreate(role="user", content=transcription, message_type="audio", metadata={"audio_file_id": audio_file_id})
+            await chat_service.add_message(session_id, user_message)
+
             # Process the transcribed text with RAG
             response = await orchestrator.handle_text(transcription)
-            
+
+            # Store assistant message in MongoDB
+            assistant_message = ChatMessageCreate(role="assistant", content=response, message_type="text", metadata={"audio_file_id": audio_file_id})
+            await chat_service.add_message(session_id, assistant_message)
+
             return SpeechResponse(
                 transcription=transcription,
                 response=response,
@@ -111,7 +122,7 @@ async def handle_speech(audio_file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Error processing speech: {str(e)}")
 
 @router.post("/speech/{language}")
-async def handle_speech_with_language(audio_file: UploadFile = File(...), language: str = "auto"):
+async def handle_speech_with_language(session_id: str, audio_file: UploadFile = File(...), language: str = "auto"):
     """
     Handle speech input with specified language: convert to text and process with RAG
     """
@@ -167,16 +178,27 @@ async def handle_speech_with_language(audio_file: UploadFile = File(...), langua
                 transcription = await speech_to_text.transcribe_english(wav_path)
             elif language == "my":
                 transcription = await speech_to_text.transcribe_burmese(wav_path)
-            
+
             if not transcription.strip():
                 raise HTTPException(
                     status_code=400,
                     detail="Could not transcribe audio. Please ensure clear speech."
                 )
-            
+
+            # Store user message in MongoDB
+            from models.chat import ChatMessageCreate
+            from services.chat_service import ChatService
+            chat_service = ChatService(Config.MONGODB_URI)
+            user_message = ChatMessageCreate(role="user", content=transcription, message_type="audio", metadata={"audio_file_id": audio_file_id, "language": language})
+            await chat_service.add_message(session_id, user_message)
+
             # Process the transcribed text with RAG
             response = await orchestrator.handle_text(transcription)
-            
+
+            # Store assistant message in MongoDB
+            assistant_message = ChatMessageCreate(role="assistant", content=response, message_type="text", metadata={"audio_file_id": audio_file_id, "language": language})
+            await chat_service.add_message(session_id, assistant_message)
+
             return SpeechResponse(
                 transcription=transcription,
                 response=response,
@@ -209,10 +231,3 @@ async def handle_speech_with_language(audio_file: UploadFile = File(...), langua
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing speech: {str(e)}")
-
-@router.post("/speech-stream")
-async def handle_speech_stream():
-    """
-    Handle streaming speech input (placeholder for future implementation)
-    """
-    return {"message": "Streaming speech feature coming soon"} 
