@@ -1,4 +1,7 @@
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends, Request
+# from fastapi import APIRouter, Form, File as FastAPIFile, UploadFile, Depends, HTTPException, status, Request
+
+from typing import Optional
 from pydantic import BaseModel
 import os
 import uuid
@@ -22,12 +25,24 @@ class SpeechResponse(BaseModel):
 speech_to_text = SpeechToText()
 orchestrator = Orchestrator()
 
+
+
+
 @router.post("/speech", response_model=SpeechResponse)
-async def handle_speech(session_id: str, audio_file: UploadFile = File(...)):
+async def handle_speech(session_id: str = Form(...), audio_file: UploadFile = File(...)
+):
     """
     Handle speech input: convert to text and process with RAG
     """
     try:
+        # Debug logging
+        logger.info(f"Received speech request - session_id: {session_id}, audio_file: {audio_file.filename if audio_file else 'None'}")
+        
+        if not audio_file or not audio_file.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="No audio file provided"
+            )
         # Validate audio file
         if not validate_audio_file(audio_file.filename):
             raise HTTPException(
@@ -122,7 +137,7 @@ async def handle_speech(session_id: str, audio_file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"Error processing speech: {str(e)}")
 
 @router.post("/speech/{language}")
-async def handle_speech_with_language(session_id: str, audio_file: UploadFile = File(...), language: str = "auto"):
+async def handle_speech_with_language(session_id: str = Form(...), audio_file: UploadFile = File(...), language: str = "auto"):
     """
     Handle speech input with specified language: convert to text and process with RAG
     """

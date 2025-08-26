@@ -4,6 +4,7 @@ from typing import Optional, List, Dict, Any
 from pymongo import MongoClient
 from bson import ObjectId
 import uuid
+from pymongo.collection import ReturnDocument
 
 from models.chat import ChatSession, ChatMessage, ChatSessionCreate, ChatMessageCreate, ChatHistory
 from config import Config
@@ -69,6 +70,18 @@ class ChatService:
             session_doc = self.sessions_collection.find_one({"_id": session_id})
             if not session_doc:
                 return None
+            
+            # Debug: Log the raw document to see what's in it
+            logger.debug(f"Raw session document: {session_doc}")
+            
+            # Ensure all fields are properly typed
+            if "message_count" in session_doc and not isinstance(session_doc["message_count"], int):
+                logger.warning(f"Invalid message_count type: {type(session_doc['message_count'])}, value: {session_doc['message_count']}")
+                session_doc["message_count"] = 0  # Reset to safe default
+            
+            if "total_tokens" in session_doc and not isinstance(session_doc["total_tokens"], int):
+                logger.warning(f"Invalid total_tokens type: {type(session_doc['total_tokens'])}, value: {session_doc['total_tokens']}")
+                session_doc["total_tokens"] = 0  # Reset to safe default
             
             # Convert _id to id for Pydantic model
             session_doc["id"] = session_doc.pop("_id")
@@ -141,23 +154,20 @@ class ChatService:
 
     
     async def add_message(self, session_id: str, message_data: ChatMessageCreate, 
-                         tokens_used: Optional[int] = None, response_time_ms: Optional[int] = None) -> ChatMessage:
+                        tokens_used: Optional[int] = None, response_time_ms: Optional[int] = None) -> ChatMessage:
         """Add a message to a chat session"""
         try:
             message_id = str(ObjectId())
             now = datetime.utcnow()
 
-            print("message_data", message_data)
-
             # Handle if message_data is a string or ChatMessageCreate
             if isinstance(message_data, str):
-                # Assume string is the content, role is unknown
                 message_doc = {
                     "_id": message_id,
                     "session_id": session_id,
-                    "role": "user",  # Default role if not provided
+                    "role": "user",
                     "content": message_data,
-                    "message_type": "text",  # Default to 'text'
+                    "message_type": "text",
                     "metadata": {},
                     "created_at": now,
                     "tokens_used": tokens_used,
@@ -177,29 +187,38 @@ class ChatService:
                     "response_time_ms": response_time_ms
                 }
             
+            # Insert the new message
             self.messages_collection.insert_one(message_doc)
             
-            # Update session stats
+            # Prepare the update for the session stats
             update_data = {
-                "message_count": {"$inc": 1},
                 "updated_at": now
             }
-            
+            inc_data = {"message_count": 1}
             if tokens_used:
-                update_data["total_tokens"] = {"$inc": tokens_used}
-            
-            self.sessions_collection.update_one(
+                inc_data["total_tokens"] = tokens_used
+
+            # Update the session stats
+            result = self.sessions_collection.update_one(
                 {"_id": session_id},
-                {"$set": update_data}
+                {
+                    "$set": update_data,
+                    "$inc": inc_data
+                }
             )
+
+            if result.matched_count == 0:
+                logger.warning(f"Session {session_id} not found when adding message")
+                # Continue anyway as the message was already inserted
             
             # Convert _id to id for Pydantic model
             message_doc["id"] = message_doc.pop("_id")
             return ChatMessage(**message_doc)
-            
+                
         except Exception as e:
             logger.error(f"Error adding message: {e}")
             raise
+    
     
     async def get_session_messages(self, session_id: str, limit: int = 100, offset: int = 0) -> List[ChatMessage]:
         """Get messages for a chat session"""

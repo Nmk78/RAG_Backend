@@ -19,6 +19,7 @@ from api.file_route import router as file_router
 from api.speech_route import router as speech_router
 from api.auth_route import router as auth_router
 from api.chat_route import router as chat_router
+from api.telegram_route import router as telegram_router
 
 # Validate configuration and create directories
 try:
@@ -54,6 +55,7 @@ app.include_router(file_router, prefix=API_BASE_PREFIX, tags=["file"])
 app.include_router(speech_router, prefix=API_BASE_PREFIX, tags=["speech"])
 app.include_router(auth_router, prefix=API_BASE_PREFIX, tags=["auth"])
 app.include_router(chat_router, prefix=API_BASE_PREFIX, tags=["chat"])
+app.include_router(telegram_router, prefix=API_BASE_PREFIX, tags=["telegram"])
 
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -66,13 +68,15 @@ async def catch_exceptions_middleware(request: Request, call_next):
         return await call_next(request)
     except Exception as e:
         import traceback
-        traceback.print_exc()
+        # Don't log stream consumption errors as they're expected
+        if "Stream consumed" not in str(e) and "EndOfStream" not in str(e):
+            traceback.print_exc()
         return JSONResponse(status_code=500, content={"detail": str(e)})
 
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logging.error(f"Validation error: {exc.errors()} | Body: {await request.body()}")
+    logging.error(f"Validation error: {exc.errors()}")
     return JSONResponse(
         status_code=422,
         content={"detail": exc.errors()},

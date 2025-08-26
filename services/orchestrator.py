@@ -30,6 +30,8 @@ class Orchestrator:
             # Get relevant context from vector store
             context = await self.rag_pipeline.retrieve_context(cleaned_query)
             
+            # logging.critical(f"Context: {context}");  ## Log Context here
+
             # Generate response using Gemini
             response = await self.gemini_client.generate_response(
                 query=cleaned_query,

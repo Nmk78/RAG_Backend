@@ -1,91 +1,17 @@
-from fastapi import APIRouter, Form, File as FastAPIFile, UploadFile, Depends
 import os
-from processors.file_parser import FileParser
-# Chat with file endpoint
-from models.chat import TextWithFileResponse
-from api.auth_route import get_current_user
-from typing import Optional
-from models.user import UserResponse
-router = APIRouter()
-
-
-@router.post("/text-with-file", response_model=TextWithFileResponse)
-async def handle_text_with_file(
-    session_id: str = Form(...),
-    query: str = Form(...),
-    file: UploadFile = FastAPIFile(...),
-    current_user: Optional[UserResponse] = Depends(get_current_user)
-):
-    temp_dir = "data/temp"
-    os.makedirs(temp_dir, exist_ok=True)
-    temp_filename = f"{uuid.uuid4()}_{file.filename}"
-    temp_path = os.path.join(temp_dir, temp_filename)
-    with open(temp_path, "wb") as buffer:
-        buffer.write(await file.read())
-    file_ext = os.path.splitext(file.filename)[1].lower()
-    is_image = file_ext in {'.png', '.jpg', '.jpeg', '.webp'}
-    parser = FileParser()
-    try:
-        # Use FileParser to extract text from any supported file (text or image)
-        file_content = await parser.extract_text(temp_path)
-
-        # Store user message in MongoDB
-        from models.chat import ChatMessageCreate
-        from services.chat_service import ChatService
-        chat_service = ChatService(Config.MONGODB_URI)
-        user_message = ChatMessageCreate(role="user", content=file_content, message_type="file_upload", metadata={"filename": file.filename})
-        await chat_service.add_message(session_id, user_message)
-
-        # Pass file_content as context to the orchestrator (not indexed)
-        response = await orchestrator.handle_file_question(query=query, context=file_content, is_image=is_image)
-
-        # Store assistant message in MongoDB
-        assistant_message = ChatMessageCreate(role="assistant", content=response, message_type="text", metadata={"filename": file.filename})
-        await chat_service.add_message(session_id, assistant_message)
-
-        return TextWithFileResponse(
-            response=response,
-            query=query,
-            file=file.filename
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
-
-# Chat history endpoint for current user
-@router.get("/chat-history")
-async def get_chat_history(
-    current_user: UserResponse = Depends(get_current_user),
-    limit: int = 20,
-    offset: int = 0
-):
-    """
-    Get chat history for the current user
-    """
-    chat_service = ChatService(Config.MONGODB_URI)
-    try:
-        sessions = await chat_service.get_user_sessions(current_user.id, limit, offset)
-        history = []
-        for session in sessions:
-            messages = await chat_service.get_session_messages(session.id, limit=100)
-            history.append({
-                "session": session,
-                "messages": messages
-            })
-        return {"user_id": current_user.id, "history": history, "total_sessions": len(history)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error loading chat history: {str(e)}")
-import traceback
-import uuid
-from fastapi import APIRouter, Depends, HTTPException, status, Request
-from typing import Optional, List
 import time
+import uuid
+import traceback
+from typing import Optional, List
 
+from fastapi import APIRouter, Form, File as FastAPIFile, UploadFile, Depends, HTTPException, status, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import jwt
 
+from processors.file_parser import FileParser
 from models.chat import (
     ChatSession, ChatMessage, ChatSessionCreate, ChatMessageCreate, 
-    ChatHistory, ChatResponse, ChatSessionUpdate
+    ChatHistory, ChatResponse, ChatSessionUpdate, TextWithFileResponse
 )
 from models.user import UserResponse
 from services import chat_service
@@ -100,6 +26,84 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 orchestrator = Orchestrator()
 
 security = HTTPBearer(auto_error=False)  # don't force auth
+
+
+@router.post("/text-with-file", response_model=TextWithFileResponse)
+async def handle_text_with_file(
+    session_id: str = Form(...),
+    query: str = Form(...),
+    file: UploadFile = FastAPIFile(...)
+    # current_user: Optional[UserResponse] = Depends(get_current_user)
+):
+    temp_path = None
+    try:
+        # Validate file
+        if not file.filename:
+            raise HTTPException(status_code=400, detail="No file provided")
+        
+        # Create temp directory and file path
+        temp_dir = "data/temp"
+        os.makedirs(temp_dir, exist_ok=True)
+        temp_filename = f"{uuid.uuid4()}_{file.filename}"
+        temp_path = os.path.join(temp_dir, temp_filename)
+        
+        # Read file content once and save to temp file
+        file_content_bytes = await file.read()
+        with open(temp_path, "wb") as buffer:
+            buffer.write(file_content_bytes)
+        
+        # Determine file type
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        is_image = file_ext in {'.png', '.jpg', '.jpeg', '.webp'}
+        
+        # Extract text from file
+        parser = FileParser()
+        file_content = await parser.extract_text(temp_path)
+
+        # Store user message in MongoDB
+        chat_service = ChatService(Config.MONGODB_URI)
+        user_message = ChatMessageCreate(
+            role="user", 
+            content=file_content, 
+            message_type="file_upload", 
+            metadata={"filename": file.filename}
+        )
+        await chat_service.add_message(session_id, user_message)
+
+        # Pass file_content as context to the orchestrator (not indexed)
+        response = await orchestrator.handle_file_question(
+            query=query, 
+            context=file_content, 
+            is_image=is_image
+        )
+
+        # Store assistant message in MongoDB
+        assistant_message = ChatMessageCreate(
+            role="assistant", 
+            content=response, 
+            message_type="text", 
+            metadata={"filename": file.filename}
+        )
+        await chat_service.add_message(session_id, assistant_message)
+
+        return TextWithFileResponse(
+            response=response,
+            query=query,
+            file=file.filename
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error processing file: {str(e)}")
+    finally:
+        # Clean up temp file
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception as cleanup_error:
+                print(f"Warning: Failed to cleanup temp file {temp_path}: {cleanup_error}")
+        
 
 @router.post("/new-session", response_model=ChatSession, status_code=status.HTTP_201_CREATED)
 async def create_session(
@@ -364,67 +368,95 @@ async def get_chat_history(
             detail="Failed to retrieve chat history"
         )
 
+
 @router.post("/sessions/{session_id}/chat", response_model=ChatResponse)
 async def chat_with_ai(
     session_id: str,
     message: ChatMessageCreate,
     request: Request,
-    current_user: Optional[UserResponse] = Depends(get_current_user)
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
 ):
-    """Send a message and get AI response"""
+    """
+    Send a message and get AI response.
+    - If token is present and valid -> attach user
+    - If no/invalid token -> act as guest
+    """
     chat_service = ChatService(Config.MONGODB_URI)
+
+    # Try to decode user from token if provided
+    current_user: Optional[UserResponse] = None
+    if credentials:
+        try:
+            # Extract the token string from credentials
+            token = credentials.credentials
+            current_user = await get_current_user(token)
+            print("current_user", current_user)
+        except Exception as e:
+            # Token is invalid, treat as guest
+            print(f"JWT validation failed: {e}")
+            current_user = None
+    print("Current User", current_user)
+
     try:
-        # Verify session exists and user has access
+        # Check if session exists
+        print("Session ID", session_id)
         session = await chat_service.get_session(session_id)
         if not session:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Chat session not found"
             )
+
+
+        # Debug: Print session and user info
+        print(f"Session user_id: {session.user_id}")
+        print(f"Session is_temporary: {session.is_temporary}")
+        print(f"Current user ID: {current_user.id if current_user else None}")
         
-        if session.user_id and current_user and session.user_id != current_user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access denied to this chat session"
-            )
-        
+        # Access control logic:
+        # 1. If no JWT (guest user), only allow access to temporary sessions
+        # 2. If JWT provided, allow access to:
+        #    - Sessions owned by that user (session.user_id == current_user.id)
+        #    - Temporary sessions (for backward compatibility)
+        if current_user is None:
+            # Guest user - can only access temporary sessions
+            if not session.is_temporary:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Guest users can only access temporary sessions"
+                )
+        else:
+            # Authenticated user - can access their own sessions OR temporary sessions
+            if session.user_id != current_user.id and not session.is_temporary:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"Access denied: session belongs to {session.user_id}, user is {current_user.id}"
+                )
+
         start_time = time.time()
-        
-        # Add user message to session
+
+        # Add user message
         user_message = await chat_service.add_message(
-            session_id, 
+            session_id,
             message,
-            # metadata={"ip_address": request.client.host if request.client else None}
         )
 
-        print("🍕Message", message)
-        
-        # Get AI response using orchestrator
+        # Get AI response
         ai_response_text = await orchestrator.handle_text(message.content)
         ai_response = {"response": ai_response_text}
 
-        bot_message = await chat_service.add_message(
-            session_id, 
-            ai_response_text,
-        )
-        # Calculate response time
+        # Add assistant message
         response_time_ms = int((time.time() - start_time) * 1000)
-        
-        # Add AI response to session
         ai_message_data = ChatMessageCreate(
             role="assistant",
             content=ai_response["response"],
-            message_type="text",
-            metadata={"response_time_ms": response_time_ms}
         )
-        
+
         ai_message = await chat_service.add_message(
             session_id,
             ai_message_data,
-            tokens_used=ai_response.get("tokens_used"),
-            response_time_ms=response_time_ms
         )
-        
+
         return ChatResponse(
             session_id=session_id,
             message_id=ai_message.id,
@@ -435,13 +467,15 @@ async def chat_with_ai(
             response_time_ms=ai_message.response_time_ms
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
-        # Catch unexpected errors
         traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"error: {str(e)}"
         )
+
 
 
 @router.get("/sessions/{session_id}/stats")
@@ -494,22 +528,3 @@ async def search_messages(
         )
     finally:
         chat_service.close()
-    
-
-@router.get("/search")
-async def search_messages(
-    query: str,
-    current_user: UserResponse = Depends(get_current_user),
-    limit: int = 20
-):
-    """Search messages for the current user"""
-    try:
-        messages = await chat_service.search_messages(current_user.id, query, limit)
-        return {"query": query, "results": messages, "total": len(messages)}
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to search messages"
-        )
-
-

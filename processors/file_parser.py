@@ -135,12 +135,12 @@ class FileParser:
             # Preprocess image for optimal Gemini Vision usage
             optimized_image_data = await self._preprocess_image_for_gemini(file_path)
             
-            # Import Gemini client here to avoid circular imports
+            # Import Gemini client here to avoid circular imports   
             from services.gemini_client import GeminiClient
             
             gemini_client = GeminiClient()
             
-            # Create a prompt for image analysis
+            # Create a prompt for image analysis    //Updated at 26/Aug
             prompt = """Please analyze this image and extract any text content you can find. 
             If there's no text, describe what you see in the image in detail.
             If it's a document, extract all the text content.

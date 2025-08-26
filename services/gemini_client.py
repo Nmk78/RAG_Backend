@@ -240,55 +240,88 @@ class GeminiClient:
         """
         Build a RAG prompt with context
         """
-        prompt = f"""You are a helpful AI assistant. Use the following context to answer the user's question in Burmese. 
-        If the context doesn't contain relevant information, you can use your general knowledge, but prioritize the provided context.
+        prompt = f"""You are Pivot, an AI-powered cybersecurity and legal compliance consultant chatbot 
+            for Myanmar SMEs and start-ups.
 
-        Context:
-        {context}
+            Core Purpose:
+            - Provide clear, practical guidance on Myanmar Cyber Law, PDPA, ISO 27001, and compliance requirements.
+            - Help non-technical business owners improve cybersecurity awareness and digital risk management.
+            - Detect and explain threats such as phishing, scams, and misconfigurations.
 
-        User Question: {query}
+            Capabilities:
+            - Compliance Guidance: Explain local and international privacy regulations in simple terms.
+            - Threat Detection: Analyze suspicious emails, URLs, or messages for phishing/scam signs.
+            - Interactive Training: Provide short, gamified awareness modules.
+            - Policy Simplifier: Summarize complex legal or technical documents in plain language.
+            - Risk Assessment: Offer basic tools and checklists for SMEs to assess risks.
 
-        Please provide a clear, accurate, and helpful response based on the context provided."""
-        
+            Style & Tone:
+            - Use Burmese as primary language if user didn't mention to use another language.
+            - Use clear, simple, supportive language (avoid heavy jargon).
+            - Respond as a helpful consultant who empowers practical action.
+            - Keep answers accurate, contextual, and Myanmar-relevant.
+
+            Restrictions:
+            - Do not provide false or misleading information.
+            - If uncertain, add a caution and suggest next steps or references.
+            - Avoid unrelated political discussions.
+
+            Context:
+            {context}
+
+            User Question:
+            {query}
+
+            Answer with a clear, accurate, and helpful response based on the context above."""
+                
         return prompt
+
     
     def _build_normal_prompt(self, query: str) -> str:
         """
-        Build a RAG prompt with context
+        Build a normal prompt without external context
         """
-        prompt = f"""You are a helpful AI assistant answer the user's question in Burmese unless user ask for English or other language. 
+        prompt = f"""You are Pivot, an AI-powered assistant for Myanmar SMEs and start-ups. 
+            Answer in **Burmese** by default, unless the user specifically requests English or another language. 
+            Keep responses clear, accurate, and helpful.
 
-        User Question: {query}
+            User Question:
+            {query}
 
-        Please provide a clear, accurate, and helpful response based on the context provided."""
+            Provide a concise, correct, and supportive answer."""
         
         return prompt
+
     
     def _build_file_prompt(self, query: str, context: str) -> str:
         """
-        Build a prompt specifically for file-based questions
+        Build a prompt specifically for file-based questions.
+
+        This prompt instructs the AI to answer based ONLY on the provided document content.
+        If the document does not contain relevant information, the AI should explicitly state that.
         """
-        prompt = f"""You are a helpful AI assistant. The user is asking about a specific document. 
-        Please answer their question based ONLY on the content of that document provided below.
+        prompt = f"""You are a helpful AI assistant. The user is asking about a specific document.
+            Please answer their question based ONLY on the content of that document provided below.
 
         Document Content:
         {context}
 
         User Question: {query}
 
-        Please provide a clear answer based on the document content. If the document doesn't contain information relevant to the question, please say so."""
-        
+        Provide a clear answer based on the document content. If the document doesn't contain information relevant to the question, please say so.
+        """
         return prompt
-    
+
+        
     def clear_chat_history(self) -> None:
-        """
-        Clear the chat history
-        """
-        self.chat_history = []
-        logger.info("Cleared chat history")
-    
+            """
+            Clear the chat history
+            """
+            self.chat_history = []
+            logger.info("Cleared chat history")
+        
     def get_chat_history(self) -> List[dict]:
-        """
-        Get the current chat history
-        """
-        return self.chat_history.copy() 
+            """
+            Get the current chat history
+            """
+            return self.chat_history.copy() 
