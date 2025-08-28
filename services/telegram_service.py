@@ -58,7 +58,7 @@ class TelegramService:
         """Background task to cleanup expired sessions"""
         while True:
             try:
-                now = datetime.utcnow()
+                now = datetime.now(ZoneInfo("Asia/Yangon"))
                 expired_sessions = []
                 
                 for session_id, session in self.sessions.items():
@@ -86,7 +86,7 @@ class TelegramService:
             existing_session_id = self.user_sessions.get(telegram_user.telegram_id)
             if existing_session_id and existing_session_id in self.sessions:
                 session = self.sessions[existing_session_id]
-                session.last_activity = datetime.utcnow()
+                session.last_activity = datetime.now(ZoneInfo("Asia/Yangon"))
                 return session
             
             # Create new session
@@ -109,7 +109,7 @@ class TelegramService:
     async def process_text_message(self, session: TelegramSession, text: str, telegram_message_id: int) -> TelegramResponse:
         """Process text message from Telegram user"""
         try:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(ZoneInfo("Asia/Yangon"))
             
             # Create message record
             message = TelegramMessage(
@@ -130,10 +130,10 @@ class TelegramService:
             self._add_to_context(session, "assistant", ai_response)
             
             # Update session
-            session.last_activity = datetime.utcnow()
+            session.last_activity = datetime.now(ZoneInfo("Asia/Yangon"))
             session.message_count += 1
             
-            processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+            processing_time = (datetime.now(ZoneInfo("Asia/Yangon")) - start_time).total_seconds() * 1000
             
             return TelegramResponse(
                 response=ai_response,
@@ -149,7 +149,7 @@ class TelegramService:
     async def process_voice_message(self, session: TelegramSession, file_id: str, telegram_message_id: int, language: str = "auto") -> TelegramResponse:
         """Process voice message from Telegram user"""
         try:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(ZoneInfo("Asia/Yangon"))
             
             # Download voice file
             file_path = await self._download_telegram_file(file_id, "voice")
@@ -188,10 +188,10 @@ class TelegramService:
                 self._add_to_context(session, "assistant", ai_response)
                 
                 # Update session
-                session.last_activity = datetime.utcnow()
+                session.last_activity = datetime.now(ZoneInfo("Asia/Yangon"))
                 session.message_count += 1
                 
-                processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+                processing_time = (datetime.now(ZoneInfo("Asia/Yangon")) - start_time).total_seconds() * 1000
                 
                 return TelegramResponse(
                     response=f"🎤 *Transcription:* {transcription}\n\n{ai_response}",
@@ -217,7 +217,7 @@ class TelegramService:
     async def process_document_message(self, session: TelegramSession, file_id: str, file_name: str, telegram_message_id: int, query: str = None) -> TelegramResponse:
         """Process document message from Telegram user"""
         try:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(ZoneInfo("Asia/Yangon"))
             
             # Download document
             file_path = await self._download_telegram_file(file_id, "document", file_name)
@@ -259,10 +259,10 @@ class TelegramService:
                 self._add_to_context(session, "assistant", ai_response)
                 
                 # Update session
-                session.last_activity = datetime.utcnow()
+                session.last_activity = datetime.now(ZoneInfo("Asia/Yangon"))
                 session.message_count += 1
                 
-                processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+                processing_time = (datetime.now(ZoneInfo("Asia/Yangon")) - start_time).total_seconds() * 1000
                 
                 return TelegramResponse(
                     response=f"📄 *File:* {file_name}\n\n{ai_response}",
@@ -287,7 +287,7 @@ class TelegramService:
     async def process_photo_message(self, session: TelegramSession, file_id: str, telegram_message_id: int, caption: str = None) -> TelegramResponse:
         """Process photo message from Telegram user"""
         try:
-            start_time = datetime.utcnow()
+            start_time = datetime.now(ZoneInfo("Asia/Yangon"))
             
             # Download photo
             file_path = await self._download_telegram_file(file_id, "photo", "image.jpg")
@@ -323,10 +323,10 @@ class TelegramService:
                 self._add_to_context(session, "assistant", ai_response)
                 
                 # Update session
-                session.last_activity = datetime.utcnow()
+                session.last_activity = datetime.now(ZoneInfo("Asia/Yangon"))
                 session.message_count += 1
                 
-                processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+                processing_time = (datetime.now(ZoneInfo("Asia/Yangon")) - start_time).total_seconds() * 1000
                 
                 response_text = f"🖼️ *Image Analysis:*\n\n{ai_response}"
                 if caption:
@@ -403,7 +403,7 @@ class TelegramService:
         session.context.append({
             "role": role,
             "content": content,
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(ZoneInfo("Asia/Yangon")).isoformat()
         })
         
         # Keep only recent messages

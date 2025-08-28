@@ -86,7 +86,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 async def root():
     """Health check endpoint"""
     return {
-        "message": "RAG Chatbot API is running",
+        "message": "PIVOT API is running",
         "version": Config.API_VERSION,
         "status": "healthy"
     }

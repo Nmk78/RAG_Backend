@@ -1,5 +1,5 @@
 import api.auth_route
-from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Request
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends, Request, Query
 from pydantic import BaseModel
 import os
 import uuid
@@ -19,6 +19,19 @@ class FileUploadResponse(BaseModel):
     file_id: str
     filename: str
     file_type: str
+
+class FileListResponse(BaseModel):
+    files: List[dict]
+    total_count: int
+    page: int
+    page_size: int
+    total_pages: int
+
+class FileSearchResponse(BaseModel):
+    files: List[dict]
+    total_count: int
+    search_query: str
+    search_type: str
 
 # Initialize services
 file_parser = FileParser()
@@ -73,7 +86,12 @@ async def upload_files(files: List[UploadFile] =
     return {"status": "success", "message": "Batch upload completed", "data": results}
 
 @router.get("/files")
-async def list_uploaded_files():
+async def list_uploaded_files(
+    page: int = Query(1, ge=1, description="Page number (starts from 1)"),
+    page_size: int = Query(10, ge=1, le=100, description="Number of files per page"),
+    order_by: str = Query("created_at", description="Field to order by: created_at, filename, file_id"),
+    order_direction: str = Query("desc", description="Order direction: asc or desc")
+):
     """
     List all uploaded files from the vector store
     """
@@ -82,13 +100,54 @@ async def list_uploaded_files():
         vector_store = VectorStore()
         
         if hasattr(vector_store, 'zilliz_store'):
-            files = await vector_store.zilliz_store.list_files()
-            return {"files": files, "count": len(files)}
+            result = await vector_store.zilliz_store.list_files_paginated(
+                page=page,
+                page_size=page_size,
+                order_by=order_by,
+                order_direction=order_direction
+            )
+            return result
         else:
             return {"message": "File listing only available with Zilliz vector store"}
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing files: {str(e)}")
+
+@router.get("/files/search")
+async def find_files(
+    query: str = Query(..., description="Search query for files"),
+    search_type: str = Query("filename", description="Search type: filename, file_id, content"),
+    limit: int = Query(10, ge=1, le=200, description="Maximum number of results"),
+    current_user: Optional[UserResponse] = Depends(get_current_user)
+):
+    """
+    Search and find files for admin users - supports filename, file_id, and content search
+    """
+    # Check if user is admin
+    if not current_user or current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    try:
+        from retriever.vectorstore import VectorStore
+        vector_store = VectorStore()
+        
+        if hasattr(vector_store, 'zilliz_store'):
+            result = await vector_store.zilliz_store.search_files(
+                query=query,
+                search_type=search_type,
+                limit=limit
+            )
+            return {
+                "files": result,
+                "total_count": len(result),
+                "search_query": query,
+                "search_type": search_type
+            }
+        else:
+            return {"message": "File search only available with Zilliz vector store"}
+            
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error searching files: {str(e)}")
 
 @router.delete("/file/{file_id}")
 async def delete_file(file_id: str):

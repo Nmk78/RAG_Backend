@@ -88,9 +88,9 @@ class AuthService:
         """Create a JWT access token"""
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.utcnow() + expires_delta
+            expire = datetime.now(ZoneInfo("Asia/Yangon")) + expires_delta
         else:
-            expire = datetime.utcnow() + timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
+            expire = datetime.now(ZoneInfo("Asia/Yangon")) + timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)
         
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, Config.SECRET_KEY, algorithm=Config.ALGORITHM)
@@ -130,7 +130,7 @@ class AuthService:
             
             # Create user document
             user_id = str(ObjectId())
-            now = datetime.utcnow()
+            now = datetime.now(ZoneInfo("Asia/Yangon"))
             
             user_doc = {
                 "_id": user_id,
@@ -173,7 +173,7 @@ class AuthService:
             # Update last login
             self.users_collection.update_one(
                 {"_id": user_doc["_id"]},
-                {"$set": {"last_login": datetime.utcnow()}}
+                {"$set": {"last_login": datetime.now(ZoneInfo("Asia/Yangon"))}}
             )
             
             # Return user without password
@@ -234,7 +234,7 @@ class AuthService:
     async def update_user(self, user_id: str, update_data: dict) -> Optional[UserInDB]:
         """Update user information"""
         try:
-            update_data["updated_at"] = datetime.utcnow()
+            update_data["updated_at"] = datetime.now(ZoneInfo("Asia/Yangon"))
             
             result = self.users_collection.update_one(
                 {"_id": user_id},

@@ -145,7 +145,7 @@ class ZillizVectorStore:
                 embedding_vectors.append(embedding)
                 file_ids.append(metadata.get("file_id", "") if metadata else "")
                 filenames.append(metadata.get("filename", "") if metadata else "")
-                created_ats.append(datetime.utcnow().isoformat())
+                created_ats.append(datetime.now(ZoneInfo("Asia/Yangon")).isoformat())
                 metadata_list.append(str(metadata) if metadata else "{}")
             
             # Insert data into collection
@@ -335,6 +335,191 @@ class ZillizVectorStore:
             
         except Exception as e:
             logger.error(f"Error listing files from Zilliz: {str(e)}")
+            return []
+    
+    async def list_files_paginated(self, page: int = 1, page_size: int = 10, 
+                                 order_by: str = "created_at", order_direction: str = "desc") -> Dict[str, Any]:
+        """
+        List unique files in the collection with pagination and ordering
+        """
+        try:
+            # Validate order_by field
+            valid_order_fields = ["created_at", "filename", "file_id"]
+            if order_by not in valid_order_fields:
+                order_by = "created_at"
+            
+            # Validate order_direction
+            if order_direction.lower() not in ["asc", "desc"]:
+                order_direction = "desc"
+            
+            # Query to get all unique files first (we need to do client-side pagination due to Milvus limitations)
+            results = self.collection.query(
+                expr="",
+                output_fields=["file_id", "filename", "created_at"],
+                limit=10000  # Get a large number to handle pagination client-side
+            )
+            
+            # Group by file_id to get unique files
+            files = {}
+            for result in results:
+                file_id = result.get("file_id")
+                if file_id and file_id not in files:
+                    files[file_id] = {
+                        "file_id": file_id,
+                        "filename": result.get("filename", ""),
+                        "created_at": result.get("created_at", "")
+                    }
+            
+            # Convert to list and sort
+            files_list = list(files.values())
+            
+            # Sort based on order_by and order_direction
+            reverse_order = order_direction.lower() == "desc"
+            if order_by == "created_at":
+                files_list.sort(key=lambda x: x.get("created_at", ""), reverse=reverse_order)
+            elif order_by == "filename":
+                files_list.sort(key=lambda x: x.get("filename", "").lower(), reverse=reverse_order)
+            elif order_by == "file_id":
+                files_list.sort(key=lambda x: x.get("file_id", ""), reverse=reverse_order)
+            
+            # Calculate pagination
+            total_count = len(files_list)
+            total_pages = (total_count + page_size - 1) // page_size
+            start_idx = (page - 1) * page_size
+            end_idx = start_idx + page_size
+            
+            # Get the page slice
+            paginated_files = files_list[start_idx:end_idx]
+            
+            return {
+                "files": paginated_files,
+                "total_count": total_count,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages
+            }
+            
+        except Exception as e:
+            logger.error(f"Error listing files with pagination from Zilliz: {str(e)}")
+            return {
+                "files": [],
+                "total_count": 0,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": 0,
+                "error": str(e)
+            }
+    
+    async def search_files(self, query: str, search_type: str = "filename", limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Search files by different criteria for admin management
+        """
+        try:
+            # Validate search_type
+            valid_search_types = ["filename", "file_id", "content"]
+            if search_type not in valid_search_types:
+                search_type = "filename"
+            
+            if search_type == "content":
+                # For content search, use vector similarity search
+                logger.info(f"Performing content search for query: {query}")
+                
+                # Generate embedding for query
+                query_embedding = await self.gemini_client.get_embeddings([query])
+                query_vector = query_embedding[0]
+                logger.info(f"Generated embedding vector of dimension: {len(query_vector)}")
+                
+                # Ensure collection is loaded
+                self.collection.load()
+                logger.info("Collection loaded for search")
+                
+                # Check if collection has data
+                try:
+                    row_count = self.collection.num_entities
+                    logger.info(f"Collection has {row_count} entities")
+                except Exception as e:
+                    logger.warning(f"Could not get entity count: {e}")
+                
+                # Perform vector search with adjusted parameters
+                search_params = {
+                    "metric_type": "COSINE",
+                    "params": {"nprobe": 16}
+                }
+                
+                results = self.collection.search(
+                    data=[query_vector],
+                    anns_field="embedding",
+                    param=search_params,
+                    limit=limit * 2,  # Get more results to account for grouping
+                    output_fields=["content", "file_id", "filename", "created_at", "metadata"]
+                )
+                
+                logger.info(f"Vector search returned {len(results)} result sets")
+                
+                # Format results and group by file
+                files = {}
+                total_hits = 0
+                for hits in results:
+                    total_hits += len(hits)
+                    logger.info(f"Processing {len(hits)} hits")
+                    for hit in hits:
+                        file_id = hit.entity.get("file_id", "")
+                        content = hit.entity.get("content", "")
+                        score = float(hit.score)
+                        
+                        logger.info(f"Hit: file_id={file_id}, score={score}, content_length={len(content)}")
+                        
+                        # Only include results with reasonable similarity scores
+                        if file_id and score > 0.1:  # Adjust threshold as needed
+                            if file_id not in files:
+                                files[file_id] = {
+                                    "file_id": file_id,
+                                    "filename": hit.entity.get("filename", ""),
+                                    "created_at": hit.entity.get("created_at", ""),
+                                    "relevance_score": score,
+                                    "matched_content": content[:200] + "..." if len(content) > 200 else content
+                                }
+                            elif score > files[file_id]["relevance_score"]:
+                                # Update with better match from same file
+                                files[file_id]["relevance_score"] = score
+                                files[file_id]["matched_content"] = content[:200] + "..." if len(content) > 200 else content
+                
+                logger.info(f"Total hits processed: {total_hits}, unique files found: {len(files)}")
+                
+                # Sort by relevance score
+                sorted_files = sorted(files.values(), key=lambda x: x["relevance_score"], reverse=True)
+                return sorted_files[:limit]
+            
+            else:
+                # For filename and file_id search, use query with filter
+                if search_type == "filename":
+                    # Use LIKE operation for filename search
+                    expr = f'filename like "%{query}%"'
+                elif search_type == "file_id":
+                    # Exact or partial match for file_id
+                    expr = f'file_id like "%{query}%"'
+                
+                results = self.collection.query(
+                    expr=expr,
+                    output_fields=["file_id", "filename", "created_at"],
+                    limit=limit
+                )
+                
+                # Group by file_id to get unique files
+                files = {}
+                for result in results:
+                    file_id = result.get("file_id")
+                    if file_id and file_id not in files:
+                        files[file_id] = {
+                            "file_id": file_id,
+                            "filename": result.get("filename", ""),
+                            "created_at": result.get("created_at", "")
+                        }
+                
+                return list(files.values())
+            
+        except Exception as e:
+            logger.error(f"Error searching files in Zilliz: {str(e)}")
             return []
     
     async def close(self):

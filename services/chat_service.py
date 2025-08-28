@@ -28,7 +28,8 @@ class ChatService:
         """Create a new chat session"""
         try:
             session_id = str(ObjectId())
-            now = datetime.utcnow()
+            # now = datetime.now(ZoneInfo("Asia/Yangon"))
+            now = datetime.now(ZoneInfo("Asia/Yangon"))
             
             # Calculate expiration time based on session type
             is_temporary = session_data.is_temporary if session_data else False
@@ -94,7 +95,7 @@ class ChatService:
     async def get_user_sessions(self, user_id: str, limit: int = 50, offset: int = 0) -> List[ChatSession]:
         """Get all active (non-expired) sessions for a user"""
         try:
-            now = datetime.utcnow()
+            now = datetime.now(ZoneInfo("Asia/Yangon"))
             cursor = self.sessions_collection.find(
                 {
                     "user_id": user_id, 
@@ -121,7 +122,7 @@ class ChatService:
     async def update_session(self, session_id: str, update_data: dict) -> Optional[ChatSession]:
         """Update a chat session"""
         try:
-            update_data["updated_at"] = datetime.utcnow()
+            update_data["updated_at"] = datetime.now(ZoneInfo("Asia/Yangon"))
             
             result = self.sessions_collection.update_one(
                 {"_id": session_id},
@@ -142,7 +143,7 @@ class ChatService:
         try:
             result = self.sessions_collection.update_one(
                 {"_id": session_id},
-                {"$set": {"is_active": False, "updated_at": datetime.utcnow()}}
+                {"$set": {"is_active": False, "updated_at": datetime.now(ZoneInfo("Asia/Yangon"))}}
             )
             
             return result.modified_count > 0
@@ -158,7 +159,7 @@ class ChatService:
         """Add a message to a chat session"""
         try:
             message_id = str(ObjectId())
-            now = datetime.utcnow()
+            now = datetime.now(ZoneInfo("Asia/Yangon"))
 
             # Handle if message_data is a string or ChatMessageCreate
             if isinstance(message_data, str):

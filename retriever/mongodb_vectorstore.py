@@ -92,7 +92,7 @@ class MongoDBVectorStore:
                     "_id": doc_id,
                     "content": doc,
                     "embedding": embedding,
-                    "created_at": datetime.utcnow(),
+                    "created_at": datetime.now(ZoneInfo("Asia/Yangon")),
                     "metadata": metadata or {}
                 }
                 

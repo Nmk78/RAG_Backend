@@ -544,19 +544,24 @@ Get chat history for the current user (legacy endpoint).
 
 ## 📁 File Management Endpoints (`/files`)
 
-### 1. Upload Files (Admin Only)
+### 1. Upload Files
 **POST** `/files`
 
-Upload and process multiple files for RAG indexing.
+Upload and process multiple files for RAG indexing (admin only).
 
-**Headers:** `Authorization: Bearer <admin_token>`
+#### Authentication Required
+- **Admin role required**
 
-**Request Body (Form Data):**
-```
-files: [multiple file uploads]
-```
+#### Request
+- **Content-Type**: `multipart/form-data`
+- **Body**: Form data with file uploads
 
-**Response (200):**
+#### Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| files | List[UploadFile] | Yes | Multiple files to upload |
+
+#### Response
 ```json
 {
   "status": "success",
@@ -573,51 +578,255 @@ files: [multiple file uploads]
 }
 ```
 
-**Supported File Types:** PDF, DOC, DOCX, TXT, and other text-based formats
+#### Error Responses
+- **403 Forbidden**: Non-admin user attempting upload
+- **400 Bad Request**: Invalid file type or size
+- **500 Internal Server Error**: Processing error
 
-**Errors:**
-- `403`: Only admin users can upload files
-- `400`: File type not allowed or file too large
-- `500`: Processing error
+#### Example
+```bash
+curl -X POST "http://localhost:8000/files" \
+  -H "Authorization: Bearer <token>" \
+  -F "files=@document1.pdf" \
+  -F "files=@document2.txt"
+```
 
 ---
 
-### 2. List Uploaded Files
+### 2. List Files (Paginated)
 **GET** `/files`
 
-List all uploaded files from the vector store.
+List uploaded files with pagination and ordering support.
 
-**Response (200):**
+#### Authentication Required
+- **Any authenticated user**
+
+#### Query Parameters
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| page | int | 1 | Page number (starts from 1) |
+| page_size | int | 10 | Number of files per page (1-100) |
+| order_by | str | "created_at" | Field to order by: created_at, filename, file_id |
+| order_direction | str | "desc" | Order direction: asc or desc |
+
+#### Response
 ```json
 {
   "files": [
     {
-      "id": "file_id",
+      "file_id": "uuid-here",
       "filename": "document.pdf",
-      "upload_date": "2024-01-01T00:00:00Z",
-      "size": 1024000
+      "created_at": "2025-01-27T14:30:00"
     }
   ],
-  "count": 1
+  "total_count": 25,
+  "page": 1,
+  "page_size": 10,
+  "total_pages": 3
+}
+```
+
+#### Examples
+```bash
+# Default listing
+GET /files
+
+# Custom pagination
+GET /files?page=2&page_size=20
+
+# Order by filename ascending
+GET /files?order_by=filename&order_direction=asc
+
+# Combined parameters
+GET /files?page=1&page_size=5&order_by=filename&order_direction=desc
+```
+
+---
+
+### 3. Search Files
+**GET** `/files/search`
+
+Search and find files for admin users with multiple search types.
+
+#### Authentication Required
+- **Admin role required**
+
+#### Query Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| query | str | Yes | Search query for files |
+| search_type | str | No | Search type: filename, file_id, content (default: filename) |
+| limit | int | No | Maximum results (1-200, default: 50) |
+
+#### Search Types
+1. **filename**: Partial filename matching
+2. **file_id**: Partial file ID matching  
+3. **content**: Semantic content search using vector similarity
+
+#### Response
+```json
+{
+  "files": [
+    {
+      "file_id": "uuid-here",
+      "filename": "report.pdf",
+      "created_at": "2025-01-27T14:30:00",
+      "relevance_score": 0.85,
+      "matched_content": "Machine learning algorithms..."
+    }
+  ],
+  "total_count": 5,
+  "search_query": "machine learning",
+  "search_type": "content"
+}
+```
+
+#### Response Fields
+- **relevance_score**: Only present for content search
+- **matched_content**: Preview of matched content (content search only)
+
+#### Examples
+```bash
+# Search by filename
+GET /files/search?query=report&search_type=filename
+
+# Search by file ID
+GET /files/search?query=abc123&search_type=file_id
+
+# Semantic content search
+GET /files/search?query=machine learning algorithms&search_type=content&limit=20
+```
+
+---
+
+### 4. Delete File
+**DELETE** `/file/{file_id}`
+
+Delete a specific file and its indexed content.
+
+#### Authentication Required
+- **Admin role required**
+
+#### Path Parameters
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| file_id | str | Yes | Unique identifier of the file to delete |
+
+#### Response
+```json
+{
+  "message": "File abc123 deleted successfully"
+}
+```
+
+#### Error Responses
+- **403 Forbidden**: Non-admin user attempting deletion
+- **404 Not Found**: File not found
+- **500 Internal Server Error**: Deletion error
+
+#### Example
+```bash
+curl -X DELETE "http://localhost:8000/file/uuid-here" \
+  -H "Authorization: Bearer <token>"
+```
+
+---
+
+## Data Models
+
+### FileUploadResponse
+```python
+{
+  "message": str,
+  "file_id": str,
+  "filename": str,
+  "file_type": str
+}
+```
+
+### FileListResponse
+```python
+{
+  "files": List[dict],
+  "total_count": int,
+  "page": int,
+  "page_size": int,
+  "total_pages": int
+}
+```
+
+### FileSearchResponse
+```python
+{
+  "files": List[dict],
+  "total_count": int,
+  "search_query": str,
+  "search_type": str
 }
 ```
 
 ---
 
-### 3. Delete File
-**DELETE** `/file/{file_id}`
+## Configuration
 
-Delete a specific file and its indexed content.
+### File Upload Limits
+- **Allowed Extensions**: Configured in `Config.ALLOWED_EXTENSIONS`
+- **Max File Size**: Configured in `Config.MAX_FILE_SIZE`
+- **Upload Directory**: Configured in `Config.UPLOAD_DIR`
 
-**Response (200):**
+### Vector Store Support
+- **Primary**: Zilliz Cloud (Milvus)
+- **Fallback**: MongoDB Atlas
+- File operations require Zilliz for full functionality
+
+---
+
+## Error Handling
+
+### Common Error Codes
+- **400**: Bad Request (invalid parameters, file type, size)
+- **401**: Unauthorized (missing or invalid token)
+- **403**: Forbidden (insufficient permissions)
+- **404**: Not Found (file not found)
+- **500**: Internal Server Error (processing/database errors)
+
+### Error Response Format
 ```json
 {
-  "message": "File file_id deleted successfully"
+  "detail": "Error description"
 }
 ```
 
-**Errors:**
-- `500`: Error deleting file
+---
+
+## Usage Examples
+
+### Complete File Management Workflow
+
+1. **Upload files** (Admin)
+```bash
+curl -X POST "http://localhost:8000/files" \
+  -H "Authorization: Bearer <admin_token>" \
+  -F "files=@document.pdf"
+```
+
+2. **List files** with pagination
+```bash
+curl "http://localhost:8000/files?page=1&page_size=10" \
+  -H "Authorization: Bearer <token>"
+```
+
+3. **Search files** by content (Admin)
+```bash
+curl "http://localhost:8000/files/search?query=machine learning&search_type=content" \
+  -H "Authorization: Bearer <admin_token>"
+```
+
+4. **Delete file** (Admin)
+```bash
+curl -X DELETE "http://localhost:8000/file/uuid-here" \
+  -H "Authorization: Bearer <admin_token>"
+```
 
 ---
 
