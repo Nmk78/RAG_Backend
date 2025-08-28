@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 from enum import Enum
@@ -30,6 +30,12 @@ class MessageType(str, Enum):
     AUDIO = "audio"
 
 class ChatMessage(BaseModel):
+    model_config = ConfigDict(
+        json_encoders={
+            datetime: lambda v: v.isoformat()
+        }
+    )
+    
     id: str
     session_id: str
     role: MessageRole
@@ -60,6 +66,12 @@ class ChatSessionUpdate(BaseModel):
     metadata: Optional[Dict[str, Any]] = None
 
 class ChatSession(ChatSessionBase):
+    model_config = ConfigDict(
+        json_encoders={
+            datetime: lambda v: v.isoformat()
+        }
+    )
+    
     id: str
     user_id: Optional[str] = None  # None for anonymous sessions
     created_at: datetime
@@ -71,6 +83,12 @@ class ChatSession(ChatSessionBase):
     expires_at: Optional[datetime] = None
 
 class ChatResponse(BaseModel):
+    model_config = ConfigDict(
+        json_encoders={
+            datetime: lambda v: v.isoformat()
+        }
+    )
+    
     session_id: str
     message_id: str
     content: str

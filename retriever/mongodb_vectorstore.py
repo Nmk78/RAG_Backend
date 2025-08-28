@@ -7,6 +7,7 @@ from pymongo import MongoClient
 import numpy as np
 from datetime import datetime
 import uuid
+from zoneinfo import ZoneInfo
 
 from config import Config
 from services.gemini_client import GeminiClient

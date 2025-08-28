@@ -7,6 +7,7 @@ import aiohttp
 import json
 import os
 import tempfile
+from zoneinfo import ZoneInfo
 
 from models.telegram import (
     TelegramUser, TelegramSession, TelegramMessage, TelegramResponse,

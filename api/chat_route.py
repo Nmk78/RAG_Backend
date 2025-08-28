@@ -1,8 +1,10 @@
 import os
-import time
 import uuid
 import traceback
 from typing import Optional, List
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 
 from fastapi import APIRouter, Form, File as FastAPIFile, UploadFile, Depends, HTTPException, status, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -433,7 +435,7 @@ async def chat_with_ai(
                     detail=f"Access denied: session belongs to {session.user_id}, user is {current_user.id}"
                 )
 
-        start_time = time.time()
+        start_time = datetime.now(ZoneInfo("Asia/Yangon"))
 
         # Add user message
         user_message = await chat_service.add_message(
@@ -446,7 +448,7 @@ async def chat_with_ai(
         ai_response = {"response": ai_response_text}
 
         # Add assistant message
-        response_time_ms = int((time.time() - start_time) * 1000)
+        response_time_ms = int((datetime.now(ZoneInfo("Asia/Yangon")) - start_time).total_seconds() * 1000)
         ai_message_data = ChatMessageCreate(
             role="assistant",
             content=ai_response["response"],

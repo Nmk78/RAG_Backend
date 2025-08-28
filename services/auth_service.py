@@ -7,6 +7,7 @@ from jose import JWTError, jwt
 from pymongo import MongoClient
 from bson import ObjectId
 import uuid
+from zoneinfo import ZoneInfo
 
 from models.user import UserInDB, UserCreate, UserResponse, UserRole, UserStatus, TokenData
 from config import Config

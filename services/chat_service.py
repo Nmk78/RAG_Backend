@@ -1,10 +1,11 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from pymongo import MongoClient
 from bson import ObjectId
 import uuid
 from pymongo.collection import ReturnDocument
+from zoneinfo import ZoneInfo
 
 from models.chat import ChatSession, ChatMessage, ChatSessionCreate, ChatMessageCreate, ChatHistory
 from config import Config
@@ -86,6 +87,16 @@ class ChatService:
             
             # Convert _id to id for Pydantic model
             session_doc["id"] = session_doc.pop("_id")
+            
+            # Convert datetime fields from UTC to Myanmar timezone
+            datetime_fields = ["created_at", "updated_at", "expires_at"]
+            for field in datetime_fields:
+                if field in session_doc and session_doc[field]:
+                    if session_doc[field].tzinfo is None:
+                        # MongoDB stores datetime in UTC, so convert from UTC to Myanmar time
+                        utc_dt = session_doc[field].replace(tzinfo=timezone.utc)
+                        session_doc[field] = utc_dt.astimezone(ZoneInfo("Asia/Yangon"))
+            
             return ChatSession(**session_doc)
             
         except Exception as e:
@@ -214,6 +225,16 @@ class ChatService:
             
             # Convert _id to id for Pydantic model
             message_doc["id"] = message_doc.pop("_id")
+            
+            # Ensure created_at has Myanmar timezone
+            if "created_at" in message_doc and message_doc["created_at"]:
+                if message_doc["created_at"].tzinfo is None:
+                    # MongoDB stores datetime in UTC, so convert from UTC to Myanmar time
+                    logger.info(f"Converting UTC time {message_doc['created_at']} to Myanmar time")
+                    utc_dt = message_doc["created_at"].replace(tzinfo=timezone.utc)
+                    message_doc["created_at"] = utc_dt.astimezone(ZoneInfo("Asia/Yangon"))
+                    logger.info(f"Converted to Myanmar time: {message_doc['created_at']}")
+            
             return ChatMessage(**message_doc)
                 
         except Exception as e:
@@ -232,6 +253,14 @@ class ChatService:
             for message_doc in cursor:
                 # Convert _id to id for Pydantic model
                 message_doc["id"] = message_doc.pop("_id")
+                
+                # Ensure created_at has Myanmar timezone
+                if "created_at" in message_doc and message_doc["created_at"]:
+                    if message_doc["created_at"].tzinfo is None:
+                        # MongoDB stores datetime in UTC, so convert from UTC to Myanmar time
+                        utc_dt = message_doc["created_at"].replace(tzinfo=timezone.utc)
+                        message_doc["created_at"] = utc_dt.astimezone(ZoneInfo("Asia/Yangon"))
+                
                 messages.append(ChatMessage(**message_doc))
             
             return messages
