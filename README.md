@@ -4,7 +4,7 @@
 This project includes multiple platforms powered by a unified Python RAG backend.  
 **Other parts of the project (frontends) can be found here:**  
 #  [Android App (Expo)](https://github.com/Nmk78/Pivot_Android)  
-#  [Web Dashboard](https://github.com/Nmk78/Pivot_Dashboard)  
+#  [Web Chtbot & Dashboard](https://github.com/Nmk78/Pivot_Dashboard)  
 #  [Telegram Bot Frontend](https://github.com/Nmk78/RAG_Telegram_Frontend_Bot)
 
 
