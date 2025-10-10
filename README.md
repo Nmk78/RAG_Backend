@@ -1,3 +1,13 @@
+# First, Also check out other part of the project 
+# AI Cybersecurity Chatbot for SMEs & Startups
+
+This project includes multiple platforms powered by a unified Python RAG backend.  
+**Other parts of the project (frontends) can be found here:**  
+#  [Android App (Expo)](https://github.com/Nmk78/Pivot_Android)  
+#  [Web Dashboard](https://github.com/Nmk78/Pivot_Dashboard)  
+#  [Telegram Bot Frontend](https://github.com/Nmk78/RAG_Telegram_Frontend_Bot)
+
+
 # 🤖 RAG Chatbot API
 
 A powerful Retrieval-Augmented Generation (RAG) chatbot API built with FastAPI, LangChain, and Google Gemini. This API supports multiple input types including text, file uploads, and speech-to-text conversion.
