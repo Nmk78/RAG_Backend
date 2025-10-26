@@ -30,6 +30,8 @@ class Orchestrator:
             # Get relevant context from vector store
             context = await self.rag_pipeline.retrieve_context(cleaned_query)
             
+            # logging.critical(f"Context: {context}");  ## Log Context here
+
             # Generate response using Gemini
             response = await self.gemini_client.generate_response(
                 query=cleaned_query,
@@ -50,13 +52,23 @@ class Orchestrator:
             # Clean query
             cleaned_query = await self._clean_query(query)  
 
-            # Generate response
-            response = await self.gemini_client.generate_response(
-                query=cleaned_query,
-                context=context,
-                file_context=True,
-                is_image=is_image
-            )
+            if is_image:
+                # For images, the context is already the extracted text/description from Gemini Vision
+                # So we can treat it like a normal text response
+                response = await self.gemini_client.generate_response(
+                    query=cleaned_query,
+                    context=context,
+                    file_context=True,
+                    is_image=False  # Set to False since context is already processed
+                )
+            else:
+                # For regular files, generate response normally
+                response = await self.gemini_client.generate_response(
+                    query=cleaned_query,
+                    context=context,
+                    file_context=True,
+                    is_image=False
+                )
             
             return response
             

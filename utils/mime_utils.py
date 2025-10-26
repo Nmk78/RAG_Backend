@@ -17,6 +17,8 @@ MIME_TYPE_MAPPING = {
     'audio/mpeg': '.mp3',
     'audio/mp4': '.m4a',
     'audio/x-m4a': '.m4a',
+    'audio/ogg': '.ogg',
+    'audio/vorbis': '.ogg',
     
     # Image types (for future use)
     'image/jpeg': '.jpg',
@@ -134,12 +136,14 @@ def get_supported_file_types() -> dict:
             "description": "Document files for text extraction and indexing"
         },
         "audio": {
-            "extensions": [".wav", ".mp3", ".m4a"],
+            "extensions": [".wav", ".mp3", ".m4a", ".ogg"],
             "mime_types": [
                 "audio/wav",
                 "audio/mpeg",
                 "audio/mp4",
-                "audio/x-m4a"
+                "audio/x-m4a",
+                "audio/ogg",
+                "audio/vorbis"
             ],
             "description": "Audio files for speech-to-text conversion"
         }
