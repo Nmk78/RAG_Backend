@@ -31,7 +31,6 @@ class ChatService:
             session_id = str(ObjectId())
             # now = datetime.now(ZoneInfo("Asia/Yangon"))
             now = datetime.now(ZoneInfo("Asia/Yangon"))
-            
             # Calculate expiration time based on session type
             is_temporary = session_data.is_temporary if session_data else False
             
@@ -122,6 +121,16 @@ class ChatService:
             for session_doc in cursor:
                 # Convert _id to id for Pydantic model
                 session_doc["id"] = session_doc.pop("_id")
+                
+                # Convert datetime fields from UTC to Myanmar timezone
+                datetime_fields = ["created_at", "updated_at", "expires_at"]
+                for field in datetime_fields:
+                    if field in session_doc and session_doc[field]:
+                        if session_doc[field].tzinfo is None:
+                            # MongoDB stores datetime in UTC, so convert from UTC to Myanmar time
+                            utc_dt = session_doc[field].replace(tzinfo=timezone.utc)
+                            session_doc[field] = utc_dt.astimezone(ZoneInfo("Asia/Yangon"))
+                
                 sessions.append(ChatSession(**session_doc))
             
             return sessions

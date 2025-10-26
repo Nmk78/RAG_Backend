@@ -65,19 +65,34 @@ class ZillizVectorStore:
                 existing_collection = Collection(self.collection_name)
                 schema = existing_collection.schema
                 
-                # Find embedding field
+                # Check if schema matches expected schema
+                schema_valid = True
+                
+                # Find embedding field and check dimensions
                 embedding_field = None
+                created_at_field = None
                 for field in schema.fields:
                     if field.name == "embedding":
                         embedding_field = field
-                        break
+                    elif field.name == "created_at":
+                        created_at_field = field
                 
-                if embedding_field and embedding_field.params.get("dim") == self.dimension:
-                    logger.info(f"Collection '{self.collection_name}' exists with correct dimensions")
+                # Check embedding dimensions
+                if not embedding_field or embedding_field.params.get("dim") != self.dimension:
+                    logger.warning(f"Collection exists but embedding dimensions don't match")
+                    schema_valid = False
+                
+                # Check created_at field max_length
+                if created_at_field and created_at_field.params.get("max_length", 0) < 35:
+                    logger.warning(f"Collection exists but created_at max_length is too small: {created_at_field.params.get('max_length')} < 35")
+                    schema_valid = False
+                
+                if schema_valid:
+                    logger.info(f"Collection '{self.collection_name}' exists with correct schema")
                     self.collection = existing_collection
                     return
                 else:
-                    logger.warning(f"Collection exists but dimensions don't match. Dropping and recreating...")
+                    logger.warning(f"Collection exists but schema doesn't match. Dropping and recreating...")
                     utility.drop_collection(self.collection_name)
             
             # Define collection schema
@@ -87,7 +102,7 @@ class ZillizVectorStore:
                 FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=self.dimension),
                 FieldSchema(name="file_id", dtype=DataType.VARCHAR, max_length=36),
                 FieldSchema(name="filename", dtype=DataType.VARCHAR, max_length=255),
-                FieldSchema(name="created_at", dtype=DataType.VARCHAR, max_length=30),
+                FieldSchema(name="created_at", dtype=DataType.VARCHAR, max_length=35),
                 FieldSchema(name="metadata", dtype=DataType.VARCHAR, max_length=4096)
             ]
             
